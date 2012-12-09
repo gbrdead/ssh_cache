@@ -62,11 +62,6 @@ int main(void)
         cerr << "Cannot create TCP server socket on port " << PORT << ", protocol IPv4: " << e.what() << endl;
     }
 
-    if (v4Acceptor != NULL)
-    {
-
-    }
-
     thread *v4Thread = NULL;
     thread *v6Thread = NULL;
     if (v4Acceptor != NULL)
@@ -77,14 +72,12 @@ int main(void)
     {
         v6Thread = new thread(acceptThread, &ioService, v6Acceptor);
     }
-
     if (v4Thread != NULL)
     {
         v4Thread->join();
         delete v4Thread;
         delete v4Acceptor;
     }
-
     if (v6Thread != NULL)
     {
         v6Thread->join();
