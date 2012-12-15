@@ -1,3 +1,4 @@
+#include "ClientConnection.hpp"
 #include "Constants.hpp"
 
 #include <boost/asio.hpp>
@@ -7,7 +8,6 @@ using namespace boost::asio::ip;
 using namespace boost::system;
 using namespace boost;
 
-#include <cstdlib>
 #include <iostream>
 using namespace std;
 
@@ -19,13 +19,14 @@ namespace voidland
 namespace ssh_cache
 {
 
-static void acceptThread(io_service *ioService, tcp::acceptor *acceptor)
+
+static void runAcceptThread(io_service *ioService, tcp::acceptor *acceptor)
 {
     while (true)
     {
-        tcp::socket socket(*ioService);
-        acceptor->accept(socket);
-
+        tcp::socket *socket = new tcp::socket(*ioService);
+        acceptor->accept(*socket);
+        pair<shared_ptr<thread>, weak_ptr<ClientConnection> > clientConnPair = ClientConnection::start(socket);
     }
 }
 
@@ -33,8 +34,8 @@ int main(void)
 {
     io_service ioService;
 
-    tcp::acceptor *v6Acceptor = NULL;
-    tcp::acceptor *v4Acceptor = NULL;
+    tcp::acceptor *v6Acceptor = 0;
+    tcp::acceptor *v4Acceptor = 0;
     try
     {
         v6Acceptor = new tcp::acceptor(ioService, tcp::endpoint(tcp::v6(), PORT));
@@ -48,7 +49,7 @@ int main(void)
         bool v4AlreadyBound = false;
         if (v6Acceptor != NULL)
         {
-            v6_only v6OnlyOption;
+           v6_only v6OnlyOption;
             v6Acceptor->get_option(v6OnlyOption);
             v4AlreadyBound = !v6OnlyOption.value();
         }
@@ -62,23 +63,23 @@ int main(void)
         cerr << "Cannot create TCP server socket on port " << PORT << ", protocol IPv4: " << e.what() << endl;
     }
 
-    thread *v4Thread = NULL;
-    thread *v6Thread = NULL;
-    if (v4Acceptor != NULL)
+    thread *v4Thread = 0;
+    thread *v6Thread = 0;
+    if (v4Acceptor)
     {
-        v4Thread = new thread(acceptThread, &ioService, v4Acceptor);
+        v4Thread = new thread(runAcceptThread, &ioService, v4Acceptor);
     }
-    if (v6Acceptor != NULL)
+    if (v6Acceptor)
     {
-        v6Thread = new thread(acceptThread, &ioService, v6Acceptor);
+        v6Thread = new thread(runAcceptThread, &ioService, v6Acceptor);
     }
-    if (v4Thread != NULL)
+    if (v4Thread)
     {
         v4Thread->join();
         delete v4Thread;
         delete v4Acceptor;
     }
-    if (v6Thread != NULL)
+    if (v6Thread)
     {
         v6Thread->join();
         delete v6Thread;
@@ -89,11 +90,9 @@ int main(void)
 }
 
 
-
 }
 }
 }
-
 
 int main(void)
 {
