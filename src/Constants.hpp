@@ -9,7 +9,8 @@ namespace voidland
 namespace ssh_cache
 {
 
-const unsigned short PORT = 2222;
+const unsigned short PROXY_PORT = 8022;
+const unsigned short BACKEND_PORT = 8023;
 
 }
 }

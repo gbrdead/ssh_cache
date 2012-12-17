@@ -1,0 +1,8 @@
+{
+   pthread_not_done_when_exiting
+   Memcheck:Leak
+   ...
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:_ZN5boost6thread12start_threadEv
+   ...
+}
