@@ -6,7 +6,6 @@
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
-#include <utility>
 
 
 namespace org
@@ -19,8 +18,6 @@ namespace ssh_cache
 
 using namespace boost;
 using namespace boost::asio::ip;
-using namespace boost::system;
-using namespace std;
 
 
 class ClientConnection

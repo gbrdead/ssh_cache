@@ -1,11 +1,6 @@
 #include "ClientConnection.hpp"
 
-#include <boost/bind.hpp>
-using namespace boost;
 using namespace boost::asio;
-
-#include <iostream>
-using namespace std;
 
 
 namespace org
