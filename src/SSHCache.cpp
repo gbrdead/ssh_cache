@@ -11,6 +11,7 @@ using namespace boost::asio::ip;
 using namespace boost::system;
 
 #include <iostream>
+#include <list>
 using namespace std;
 
 
@@ -21,6 +22,8 @@ namespace voidland
 namespace ssh_cache
 {
 
+// TODO: Dangling weak pointers must be purged from the list somehow.
+static list<weak_ptr<ClientConnection> > clientConnections;
 
 static void asyncAcceptor(tcp::acceptor &acceptor);
 
@@ -31,7 +34,7 @@ static void acceptHandler(const error_code &error, shared_ptr<tcp::socket> socke
         return;
     }
 
-    pair<shared_ptr<thread>, weak_ptr<ClientConnection> > clientConnPair = ClientConnection::start(socket);
+    clientConnections.push_back(ClientConnection::createAndStart(socket));
     asyncAcceptor(acceptor);
 }
 
@@ -101,7 +104,16 @@ int main(void)
         signal_set signals(ioService, SIGINT, SIGTERM);
         signals.async_wait(
             bind(signalHandler, placeholders::error, placeholders::signal_number, v6Acceptor, v4Acceptor));
+
         ioService.run();
+
+        for (list<weak_ptr<ClientConnection> >::iterator i = clientConnections.begin(); i != clientConnections.end(); i++)
+        {
+            if (shared_ptr<ClientConnection> clientConn = i->lock())
+            {
+                clientConn->join();
+            }
+        }
     }
     return 0;
 }

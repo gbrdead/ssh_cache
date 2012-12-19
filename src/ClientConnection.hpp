@@ -4,7 +4,6 @@
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
-#include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 #include <utility>
@@ -28,13 +27,21 @@ class ClientConnection
 {
 private:
     shared_ptr<tcp::socket> socket;
+    shared_ptr<thread> sendingThread;
+    shared_ptr<thread> receivingThread;
+
 
     ClientConnection(shared_ptr<tcp::socket> socket);
-    void run(void);
-    static void runThread(shared_ptr<ClientConnection> clientConn);
+
+    void send(void);
+    void receive(void);
+
+    static void runSendingThread(shared_ptr<ClientConnection> &clientConn);
+    static void runReceivingThread(shared_ptr<ClientConnection> &clientConn);
 
 public:
-    static pair<shared_ptr<thread>, weak_ptr<ClientConnection> > start(shared_ptr<tcp::socket> socket);
+    static weak_ptr<ClientConnection> createAndStart(shared_ptr<tcp::socket> socket);
+    void join(void);
 };
 
 
