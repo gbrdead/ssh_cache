@@ -18,17 +18,21 @@ namespace ssh_cache
 
 using namespace boost;
 using namespace boost::asio::ip;
+using namespace boost::system;
 
 
 class ClientConnection
 {
 private:
-    shared_ptr<tcp::socket> socket;
+    shared_ptr<tcp::socket> clientSocket;
+    tcp::socket backendSocket;
+
     shared_ptr<thread> sendingThread;
     shared_ptr<thread> receivingThread;
 
 
-    ClientConnection(shared_ptr<tcp::socket> socket);
+    ClientConnection(shared_ptr<tcp::socket> socket)
+        throw (system_error);
 
     void send(void);
     void receive(void);
@@ -37,7 +41,8 @@ private:
     static void runReceivingThread(shared_ptr<ClientConnection> &clientConn);
 
 public:
-    static weak_ptr<ClientConnection> createAndStart(shared_ptr<tcp::socket> socket);
+    static weak_ptr<ClientConnection> createAndStart(shared_ptr<tcp::socket> socket)
+        throw (system_error);
     void join(void);
 };
 

@@ -3,6 +3,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 using namespace boost;
@@ -22,8 +23,9 @@ namespace voidland
 namespace ssh_cache
 {
 
-// TODO: Dangling weak pointers must be purged from the list somehow.
+
 static list<weak_ptr<ClientConnection> > clientConnections;
+static mutex clientConnectionsMutex;
 
 static void asyncAcceptor(tcp::acceptor &acceptor);
 
@@ -34,8 +36,35 @@ static void acceptHandler(const error_code &error, shared_ptr<tcp::socket> socke
         return;
     }
 
-    clientConnections.push_back(ClientConnection::createAndStart(socket));
+    weak_ptr<ClientConnection> clientConn;
+    try
+    {
+        clientConn = ClientConnection::createAndStart(socket);
+    }
+    catch (const system_error &e)
+    {
+        cerr << "Cannot create client connection with backend " << BACKEND_HOST << ":" << BACKEND_PORT << ": " << e.what() << endl;
+    }
     asyncAcceptor(acceptor);
+
+    {
+        mutex::scoped_lock am(clientConnectionsMutex);
+
+        list<weak_ptr<ClientConnection> >::iterator i = clientConnections.begin();
+        while (i != clientConnections.end())
+        {
+            if (!i->lock())
+            {
+                clientConnections.erase(i++);
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        clientConnections.push_back(clientConn);
+    }
 }
 
 static void asyncAcceptor(tcp::acceptor &acceptor)
@@ -61,14 +90,14 @@ static void signalHandler(const error_code &error, int signalNumber,
 int main(void)
 {
     io_service ioService;
-
     shared_ptr<tcp::acceptor> v6Acceptor;
     shared_ptr<tcp::acceptor> v4Acceptor;
+
     try
     {
         v6Acceptor.reset(new tcp::acceptor(ioService, tcp::endpoint(tcp::v6(), PROXY_PORT)));
     }
-    catch (system_error &e)
+    catch (const system_error &e)
     {
         cerr << "Cannot create TCP server socket on port " << PROXY_PORT << ", protocol IPv6: " << e.what() << endl;
     }
@@ -86,7 +115,7 @@ int main(void)
             v4Acceptor.reset(new tcp::acceptor(ioService, tcp::endpoint(tcp::v4(), PROXY_PORT)));
         }
     }
-    catch (system_error &e)
+    catch (const system_error &e)
     {
         cerr << "Cannot create TCP server socket on port " << PROXY_PORT << ", protocol IPv4: " << e.what() << endl;
     }
