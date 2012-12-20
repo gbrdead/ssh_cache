@@ -5,7 +5,6 @@
 using namespace boost::asio;
 using namespace boost::system;
 
-
 #include <iostream>
 #include <string>
 using namespace std;
@@ -87,11 +86,11 @@ void ClientConnection::runReceivingThread(shared_ptr<ClientConnection> &clientCo
 }
 
 weak_ptr<ClientConnection> ClientConnection::createAndStart(shared_ptr<tcp::socket> socket)
-    throw (system_error)
+    throw (system_error, thread_resource_error)
 {
     shared_ptr<ClientConnection> clientConn(new ClientConnection(socket));
-    clientConn->sendingThread.reset(new thread(runSendingThread, clientConn));
-    clientConn->receivingThread.reset(new thread(runReceivingThread, clientConn));
+    clientConn->sendingThread.reset(new thread(&ClientConnection::runSendingThread, clientConn));
+    clientConn->receivingThread.reset(new thread(&ClientConnection::runReceivingThread, clientConn));
     return clientConn;
 }
 

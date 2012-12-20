@@ -42,7 +42,7 @@ private:
 
 public:
     static weak_ptr<ClientConnection> createAndStart(shared_ptr<tcp::socket> socket)
-        throw (system_error);
+        throw (system_error, thread_resource_error);
     void join(void);
 };
 
