@@ -20,20 +20,29 @@ namespace ssh_cache
 
 void Server::acceptHandler(const error_code &error, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor)
 {
+    weak_ptr<ClientConnection> clientConn;
+
     if (error)
-    {   // Most probably the acceptor is closed by singnalHandler(), so this is not an unexpected error.
-        return;
+    {
+        if (error.value() == error::operation_aborted)
+        {
+            // The acceptor has been closed by singnalHandler(), so this is not an unexpected error.
+            return;
+        }
+        cerr << "Cannot accept connection: " << error.message() << endl;
+    }
+    else
+    {
+        try
+        {
+            clientConn = ClientConnection::createAndStart(socket);
+        }
+        catch (const system_error &e)
+        {
+            cerr << "Cannot create client connection with backend " << BACKEND_HOST << ":" << BACKEND_PORT << ": " << e.what() << endl;
+        }
     }
 
-    weak_ptr<ClientConnection> clientConn;
-    try
-    {
-        clientConn = ClientConnection::createAndStart(socket);
-    }
-    catch (const system_error &e)
-    {
-        cerr << "Cannot create client connection with backend " << BACKEND_HOST << ":" << BACKEND_PORT << ": " << e.what() << endl;
-    }
     this->asyncAcceptor(acceptor);
 
     {
@@ -52,7 +61,10 @@ void Server::acceptHandler(const error_code &error, shared_ptr<tcp::socket> sock
             }
         }
 
-        this->clientConnections.push_back(clientConn);
+        if (!clientConn.expired())
+        {
+            this->clientConnections.push_back(clientConn);
+        }
     }
 }
 
