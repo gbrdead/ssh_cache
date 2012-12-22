@@ -12,4 +12,7 @@ LDADD = $(SSH_CACHE_LIBS)
 
 sbin_PROGRAMS = ssh_cache
 
-ssh_cache_SOURCES = src/SSHCache.cpp src/Server.cpp src/ClientConnection.cpp src/SocketUtils.cpp
+ssh_cache_SOURCES = src/SSHCache.cpp src/Constants.hpp \
+	src/Server.hpp src/Server.cpp \
+	src/ClientConnection.hpp src/ClientConnection.cpp \
+	src/SocketUtils.hpp src/SocketUtils.cpp
