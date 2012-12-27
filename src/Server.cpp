@@ -18,18 +18,18 @@ namespace ssh_cache
 {
 
 
-void Server::acceptHandler(const error_code &error, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor)
+void Server::acceptHandler(const error_code &err, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor)
 {
     weak_ptr<ClientConnection> clientConn;
 
-    if (error)
+    if (err)
     {
-        if (error.value() == error::operation_aborted)
+        if (err == error::operation_aborted)
         {
             // The acceptor has been closed by singnalHandler(), so this is not an unexpected error.
             return;
         }
-        cerr << "Cannot accept connection: " << error.message() << endl;
+        cerr << "Cannot accept connection: " << err.message() << endl;
     }
     else
     {
@@ -39,7 +39,7 @@ void Server::acceptHandler(const error_code &error, shared_ptr<tcp::socket> sock
         }
         catch (const system_error &e)
         {
-            cerr << "Cannot create client connection with backend " << BACKEND_HOST << ":" << BACKEND_PORT << ": " << e.what() << endl;
+            cerr << "Cannot create client connection: " << e.what() << endl;
         }
     }
 
@@ -75,6 +75,7 @@ void Server::asyncAcceptor(tcp::acceptor &acceptor)
         bind(&Server::acceptHandler, this, placeholders::error, socket, ref(acceptor)));
 }
 
+// TODO: must cancel the client expiration timers
 void Server::signalHandler(const error_code &error, int signalNumber)
 {
     if (this->v6Acceptor)
