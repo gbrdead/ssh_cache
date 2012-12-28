@@ -69,8 +69,8 @@ private:
     mutex activeClientsMutex;
 
 public:
-
     ClientService(io_service &ioService);
+
     shared_ptr<Client> getClient(const address &id);
 };
 

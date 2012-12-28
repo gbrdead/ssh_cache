@@ -1,13 +1,24 @@
 #include "Server.hpp"
+#include "ClientConnection.hpp"
+#include "Client.hpp"
 #include "Constants.hpp"
 
+#include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/thread.hpp>
+#include <boost/scoped_ptr.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/weak_ptr.hpp>
+using namespace boost;
+using namespace boost::asio;
+using namespace boost::asio::ip;
 using namespace boost::system;
 
-#include <exception>
 #include <iostream>
+#include <list>
 #include <string>
+using namespace std;
 
 
 namespace org
@@ -18,7 +29,29 @@ namespace ssh_cache
 {
 
 
-void Server::acceptHandler(const error_code &err, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor)
+class ServerInternal
+{
+private:
+    io_service ioService;
+    ClientService clientService;
+    scoped_ptr<tcp::acceptor> v6Acceptor;
+    scoped_ptr<tcp::acceptor> v4Acceptor;
+    list<weak_ptr<ClientConnection> > clientConnections;
+    mutex clientConnectionsMutex;
+
+
+    void acceptHandler(const error_code &error, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor);
+    void asyncAcceptor(tcp::acceptor &acceptor);
+
+    void signalHandler(const error_code &error, int signalNumber);
+
+public:
+    ServerInternal(void);
+    void run(void);
+};
+
+
+void ServerInternal::acceptHandler(const error_code &err, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor)
 {
     weak_ptr<ClientConnection> clientConn;
 
@@ -35,7 +68,7 @@ void Server::acceptHandler(const error_code &err, shared_ptr<tcp::socket> socket
     {
         try
         {
-            clientConn = ClientConnection::createAndStart(socket);
+            clientConn = ClientConnection::createAndStart(this->clientService, socket);
         }
         catch (const system_error &e)
         {
@@ -68,15 +101,14 @@ void Server::acceptHandler(const error_code &err, shared_ptr<tcp::socket> socket
     }
 }
 
-void Server::asyncAcceptor(tcp::acceptor &acceptor)
+void ServerInternal::asyncAcceptor(tcp::acceptor &acceptor)
 {
     shared_ptr<tcp::socket> socket(new tcp::socket(acceptor.get_io_service()));
     acceptor.async_accept(*socket,
-        bind(&Server::acceptHandler, this, placeholders::error, socket, ref(acceptor)));
+        bind(&ServerInternal::acceptHandler, this, placeholders::error, socket, ref(acceptor)));
 }
 
-// TODO: must cancel the client expiration timers
-void Server::signalHandler(const error_code &error, int signalNumber)
+void ServerInternal::signalHandler(const error_code &error, int signalNumber)
 {
     if (this->v6Acceptor)
     {
@@ -100,9 +132,16 @@ void Server::signalHandler(const error_code &error, int signalNumber)
             cerr << "Error closing IPv4 server socket: " << e.what() << endl;
         }
     }
+    this->ioService.stop();
 }
 
-void Server::run(void)
+
+ServerInternal::ServerInternal(void) :
+    clientService(ioService)
+{
+}
+
+void ServerInternal::run(void)
 {
     try
     {
@@ -146,9 +185,10 @@ void Server::run(void)
     }
 
     signal_set signals(this->ioService, SIGINT, SIGTERM);
-    signals.async_wait(bind(&Server::signalHandler, this, placeholders::error, placeholders::signal_number));
+    signals.async_wait(bind(&ServerInternal::signalHandler, this, placeholders::error, placeholders::signal_number));
 
     this->ioService.run();
+    cerr << "IO service finished running." << endl;
 
     for (list<weak_ptr<ClientConnection> >::iterator i = this->clientConnections.begin(); i != this->clientConnections.end(); i++)
     {
@@ -157,6 +197,14 @@ void Server::run(void)
             clientConn->join();
         }
     }
+    this->clientConnections.clear();
+}
+
+
+void Server::run(void)
+{
+    ServerInternal impl;
+    impl.run();
 }
 
 

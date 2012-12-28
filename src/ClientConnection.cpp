@@ -18,30 +18,14 @@ namespace ssh_cache
 {
 
 
-scoped_ptr<ClientService> ClientConnection::clientService;
-
-void ClientConnection::initClientService(io_service &ioService)
+ClientConnection::ClientConnection(ClientService &clientService, shared_ptr<tcp::socket> socket)
+    throw (system_error) :
+        clientService(clientService),
+        clientSocket(socket),
+        backendSocket(socket->get_io_service())
 {
-    static mutex clientServiceMutex;
-
-    if (!clientService)
-    {
-        mutex::scoped_lock am(clientServiceMutex);
-        if (!clientService)
-        {
-            clientService.reset(new ClientService(ioService));
-        }
-    }
-}
-
-ClientConnection::ClientConnection(shared_ptr<tcp::socket> socket)
-    throw (system_error)
-        : clientSocket(socket), backendSocket(socket->get_io_service())
-{
-    initClientService(socket->get_io_service());
-
     address clientAddr = this->clientSocket->remote_endpoint().address();
-    shared_ptr<Client> client = clientService->getClient(clientAddr);
+    shared_ptr<Client> client = this->clientService.getClient(clientAddr);
 
     if (client->getMitmAttacksCount() < INITIAL_MITM_ATTACKS_COUNT)
     {
@@ -57,14 +41,12 @@ ClientConnection::ClientConnection(shared_ptr<tcp::socket> socket)
 
 void ClientConnection::send(void)
 {
-    io_service::work work(this->clientSocket->get_io_service());
     transfer(this->backendSocket, *this->clientSocket);
     close(*this->clientSocket);
 }
 
 void ClientConnection::receive(void)
 {
-    io_service::work work(this->clientSocket->get_io_service());
     transfer(*this->clientSocket, this->backendSocket);
     close(this->backendSocket);
 }
@@ -81,10 +63,10 @@ void ClientConnection::runReceivingThread(shared_ptr<ClientConnection> &clientCo
     clientConn.reset(); // Breaks the cycle between clientConn and clientConn->receivingThread.
 }
 
-weak_ptr<ClientConnection> ClientConnection::createAndStart(shared_ptr<tcp::socket> socket)
+weak_ptr<ClientConnection> ClientConnection::createAndStart(ClientService &clientService, shared_ptr<tcp::socket> socket)
     throw (system_error, thread_resource_error)
 {
-    shared_ptr<ClientConnection> clientConn(new ClientConnection(socket));
+    shared_ptr<ClientConnection> clientConn(new ClientConnection(clientService, socket));
     clientConn->sendingThread.reset(new thread(&ClientConnection::runSendingThread, clientConn));
     clientConn->receivingThread.reset(new thread(&ClientConnection::runReceivingThread, clientConn));
     return clientConn;

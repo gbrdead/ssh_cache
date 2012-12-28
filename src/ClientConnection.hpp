@@ -27,8 +27,7 @@ using namespace std;
 class ClientConnection
 {
 private:
-    static scoped_ptr<ClientService> clientService;
-    static void initClientService(io_service &ioService);
+    ClientService &clientService;
 
     shared_ptr<tcp::socket> clientSocket;
     tcp::socket backendSocket;
@@ -37,7 +36,7 @@ private:
     shared_ptr<thread> receivingThread;
 
 
-    ClientConnection(shared_ptr<tcp::socket> socket)
+    ClientConnection(ClientService &clientService, shared_ptr<tcp::socket> socket)
         throw (system_error);
 
     void send(void);
@@ -47,7 +46,7 @@ private:
     static void runReceivingThread(shared_ptr<ClientConnection> &clientConn);
 
 public:
-    static weak_ptr<ClientConnection> createAndStart(shared_ptr<tcp::socket> socket)
+    static weak_ptr<ClientConnection> createAndStart(ClientService &clientService, shared_ptr<tcp::socket> socket)
         throw (system_error, thread_resource_error);
     void join(void);
 };

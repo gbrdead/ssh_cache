@@ -36,8 +36,6 @@ Client::~Client(void)
             this->clientService.allClients.erase(f);
         }
     }
-
-    cout << "Client destroyed: " << this->id << endl;
 }
 
 void Client::connected(void)
@@ -106,6 +104,7 @@ shared_ptr<Client> ClientService::getClient(const address &id)
 
     return retVal;
 }
+
 
 }
 }
