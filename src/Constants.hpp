@@ -17,7 +17,7 @@ using namespace std;
 
 const unsigned short PROXY_PORT = 8022;
 
-const string REAL_BACKEND_HOST = "localhot";
+const string REAL_BACKEND_HOST = "localhost";
 const unsigned short REAL_BACKEND_PORT = 8023;
 const string FAKE_BACKEND_HOST = "localhost";
 const unsigned short FAKE_BACKEND_PORT = 8024;

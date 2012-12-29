@@ -188,7 +188,6 @@ void ServerInternal::run(void)
     signals.async_wait(bind(&ServerInternal::signalHandler, this, placeholders::error, placeholders::signal_number));
 
     this->ioService.run();
-    cerr << "IO service finished running." << endl;
 
     for (list<weak_ptr<ClientConnection> >::iterator i = this->clientConnections.begin(); i != this->clientConnections.end(); i++)
     {
