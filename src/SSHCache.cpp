@@ -1,14 +1,19 @@
+#include "SSHCache.hpp"
 #include "Server.hpp"
 #include "Options.hpp"
 using namespace org::voidland::ssh_cache;
 
-#include <boost/program_options.hpp>
-using namespace boost::program_options;
-
 #include <exception>
 #include <iostream>
-#include <string>
 using namespace std;
+
+
+namespace org
+{
+namespace voidland
+{
+namespace ssh_cache
+{
 
 
 int main(int argc, char *argv[])
@@ -30,4 +35,9 @@ int main(int argc, char *argv[])
         cerr << "Uncaught exception: " << e.what() << endl;
     }
     return 0;
+}
+
+
+}
+}
 }
