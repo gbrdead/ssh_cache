@@ -1,7 +1,6 @@
 #include "Server.hpp"
 #include "ClientConnection.hpp"
 #include "Client.hpp"
-#include "Constants.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -12,6 +11,7 @@
 #include <boost/weak_ptr.hpp>
 using namespace boost;
 using namespace boost::asio;
+using namespace boost::asio::error;
 using namespace boost::asio::ip;
 using namespace boost::system;
 
@@ -32,6 +32,7 @@ namespace ssh_cache
 class ServerInternal
 {
 private:
+    const Options &options;
     io_service ioService;
     ClientService clientService;
     scoped_ptr<tcp::acceptor> v6Acceptor;
@@ -46,7 +47,7 @@ private:
     void signalHandler(const error_code &error, int signalNumber);
 
 public:
-    ServerInternal(void);
+    ServerInternal(const Options &options);
     void run(void);
 };
 
@@ -57,7 +58,7 @@ void ServerInternal::acceptHandler(const error_code &err, shared_ptr<tcp::socket
 
     if (err)
     {
-        if (err == error::operation_aborted)
+        if (err == operation_aborted)
         {
             // The acceptor has been closed by singnalHandler(), so this is not an unexpected error.
             return;
@@ -68,7 +69,7 @@ void ServerInternal::acceptHandler(const error_code &err, shared_ptr<tcp::socket
     {
         try
         {
-            clientConn = ClientConnection::createAndStart(this->clientService, socket);
+            clientConn = ClientConnection::createAndStart(this->options, this->clientService, socket);
         }
         catch (const system_error &e)
         {
@@ -136,8 +137,8 @@ void ServerInternal::signalHandler(const error_code &error, int signalNumber)
 }
 
 
-ServerInternal::ServerInternal(void) :
-    clientService(ioService)
+ServerInternal::ServerInternal(const Options &options) :
+    options(options), clientService(options, ioService)
 {
 }
 
@@ -145,11 +146,11 @@ void ServerInternal::run(void)
 {
     try
     {
-        this->v6Acceptor.reset(new tcp::acceptor(this->ioService, tcp::endpoint(tcp::v6(), PROXY_PORT)));
+        this->v6Acceptor.reset(new tcp::acceptor(this->ioService, tcp::endpoint(tcp::v6(), this->options.getPort())));
     }
     catch (const system_error &e)
     {
-        cerr << "Cannot create TCP server socket on port " << PROXY_PORT << ", protocol IPv6: " << e.what() << endl;
+        cerr << "Cannot create TCP server socket on port " << this->options.getPort() << ", protocol IPv6: " << e.what() << endl;
     }
     try
     {
@@ -162,17 +163,17 @@ void ServerInternal::run(void)
         }
         if (!v4AlreadyBound)
         {
-            this->v4Acceptor.reset(new tcp::acceptor(this->ioService, tcp::endpoint(tcp::v4(), PROXY_PORT)));
+            this->v4Acceptor.reset(new tcp::acceptor(this->ioService, tcp::endpoint(tcp::v4(), this->options.getPort())));
         }
     }
     catch (const system_error &e)
     {
-        cerr << "Cannot create TCP server socket on port " << PROXY_PORT << ", protocol IPv4: " << e.what() << endl;
+        cerr << "Cannot create TCP server socket on port " << this->options.getPort() << ", protocol IPv4: " << e.what() << endl;
     }
 
     if (!this->v4Acceptor && !this->v6Acceptor)
     {
-        throw runtime_error("Cannot create TCP server socket on port " + lexical_cast<string>(PROXY_PORT) + ".");
+        throw runtime_error("Cannot create TCP server socket on port " + lexical_cast<string>(this->options.getPort()) + ".");
     }
 
     if (this->v6Acceptor)
@@ -200,9 +201,14 @@ void ServerInternal::run(void)
 }
 
 
+Server::Server(const Options &options) :
+    options(options)
+{
+}
+
 void Server::run(void)
 {
-    ServerInternal impl;
+    ServerInternal impl(this->options);
     impl.run();
 }
 

@@ -2,6 +2,7 @@
 #define _SSH_CACHE_CLIENT_CONNECTION_HPP_
 
 #include "Client.hpp"
+#include "Options.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
@@ -27,6 +28,8 @@ using namespace std;
 class ClientConnection
 {
 private:
+    const Options &options;
+
     ClientService &clientService;
 
     shared_ptr<tcp::socket> clientSocket;
@@ -36,7 +39,7 @@ private:
     shared_ptr<thread> receivingThread;
 
 
-    ClientConnection(ClientService &clientService, shared_ptr<tcp::socket> socket)
+    ClientConnection(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
         throw (system_error);
 
     void send(void);
@@ -46,7 +49,7 @@ private:
     static void runReceivingThread(shared_ptr<ClientConnection> &clientConn);
 
 public:
-    static weak_ptr<ClientConnection> createAndStart(ClientService &clientService, shared_ptr<tcp::socket> socket)
+    static weak_ptr<ClientConnection> createAndStart(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
         throw (system_error, thread_resource_error);
     void join(void);
 };

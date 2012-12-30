@@ -1,6 +1,5 @@
 #include "ClientConnection.hpp"
 #include "SocketUtils.hpp"
-#include "Constants.hpp"
 using namespace org::voidland::ssh_cache::socket_utils;
 
 #include <boost/lexical_cast.hpp>
@@ -18,8 +17,9 @@ namespace ssh_cache
 {
 
 
-ClientConnection::ClientConnection(ClientService &clientService, shared_ptr<tcp::socket> socket)
+ClientConnection::ClientConnection(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
     throw (system_error) :
+        options(options),
         clientService(clientService),
         clientSocket(socket),
         backendSocket(socket->get_io_service())
@@ -27,14 +27,14 @@ ClientConnection::ClientConnection(ClientService &clientService, shared_ptr<tcp:
     address clientAddr = this->clientSocket->remote_endpoint().address();
     shared_ptr<Client> client = this->clientService.getClient(clientAddr);
 
-    if (client->getMitmAttacksCount() < INITIAL_MITM_ATTACKS_COUNT)
+    if (client->getMitmAttacksCount() < this->options.getInitialMitmAttacks())
     {
-        connect(this->backendSocket, FAKE_BACKEND_HOST, lexical_cast<string>(FAKE_BACKEND_PORT));
+        connect(this->backendSocket, this->options.getFakeBackendHost(), this->options.getFakeBackendPort());
         client->addMitmAttack();
     }
     else
     {
-        connect(this->backendSocket, REAL_BACKEND_HOST, lexical_cast<string>(REAL_BACKEND_PORT));
+        connect(this->backendSocket, this->options.getRealBackendHost(), this->options.getRealBackendPort());
     }
     client->connected();
 }
@@ -63,10 +63,10 @@ void ClientConnection::runReceivingThread(shared_ptr<ClientConnection> &clientCo
     clientConn.reset(); // Breaks the cycle between clientConn and clientConn->receivingThread.
 }
 
-weak_ptr<ClientConnection> ClientConnection::createAndStart(ClientService &clientService, shared_ptr<tcp::socket> socket)
+weak_ptr<ClientConnection> ClientConnection::createAndStart(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
     throw (system_error, thread_resource_error)
 {
-    shared_ptr<ClientConnection> clientConn(new ClientConnection(clientService, socket));
+    shared_ptr<ClientConnection> clientConn(new ClientConnection(options, clientService, socket));
     clientConn->sendingThread.reset(new thread(&ClientConnection::runSendingThread, clientConn));
     clientConn->receivingThread.reset(new thread(&ClientConnection::runReceivingThread, clientConn));
     return clientConn;

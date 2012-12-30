@@ -1,6 +1,8 @@
 #ifndef _SSH_CACHE_CLIENT_HPP_
 #define _SSH_CACHE_CLIENT_HPP_
 
+#include "Options.hpp"
+
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #include <boost/utility.hpp>
@@ -35,13 +37,14 @@ class Client :
     friend class ClientService;
 
 private:
+    const Options &options;
     ClientService &clientService;
     address id;
     unsigned mitmAttacksCount;
     deadline_timer expirationTimer;
     mutex expirationTimerMutex;
 
-    Client(ClientService &clientService, const address &id, io_service &ioService);
+    Client(const Options &options, ClientService &clientService, const address &id, io_service &ioService);
 
     void expired(const error_code &err);
 
@@ -60,6 +63,7 @@ class ClientService :
     friend class Client;
 
 private:
+    const Options &options;
     io_service &ioService;
 
     map<address, weak_ptr<Client> > allClients;
@@ -69,7 +73,7 @@ private:
     mutex activeClientsMutex;
 
 public:
-    ClientService(io_service &ioService);
+    ClientService(const Options &options, io_service &ioService);
 
     shared_ptr<Client> getClient(const address &id);
 };

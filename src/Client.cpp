@@ -1,5 +1,4 @@
 #include "Client.hpp"
-#include "Constants.hpp"
 
 #include <boost/bind.hpp>
 using namespace boost::posix_time;
@@ -16,11 +15,12 @@ namespace ssh_cache
 {
 
 
-Client::Client(ClientService &clientService, const address &id, io_service &ioService)
-    : clientService(clientService),
-      id(id),
-      mitmAttacksCount(0),
-      expirationTimer(ioService)
+Client::Client(const Options &options, ClientService &clientService, const address &id, io_service &ioService) :
+    options(options),
+    clientService(clientService),
+    id(id),
+    mitmAttacksCount(0),
+    expirationTimer(ioService)
 {
 }
 
@@ -46,7 +46,7 @@ void Client::connected(void)
         this->clientService.activeClients.insert(thisAsSharedPtr);  // One instance of thisAsSharedPtr for each (future) call to expired().
     }
 
-    this->expirationTimer.expires_from_now(seconds(CLIENT_EXPIRATION_IN_S));
+    this->expirationTimer.expires_from_now(seconds(this->options.getClientExpirationInS()));
     this->expirationTimer.async_wait(bind(&Client::expired, this, placeholders::error));
 }
 
@@ -73,7 +73,8 @@ void Client::addMitmAttack(void)
 }
 
 
-ClientService::ClientService(io_service &ioService) :
+ClientService::ClientService(const Options &options, io_service &ioService) :
+    options(options),
     ioService(ioService)
 {
 }
@@ -91,7 +92,7 @@ shared_ptr<Client> ClientService::getClient(const address &id)
     }
     if (!retVal)
     {
-        retVal.reset(new Client(*this, id, this->ioService));
+        retVal.reset(new Client(this->options, *this, id, this->ioService));
         if (f != this->allClients.end())
         {
             f->second = retVal;
