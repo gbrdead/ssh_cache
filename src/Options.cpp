@@ -21,7 +21,7 @@ const char *initialMitmAttacksOptionName = "initial-mitm-attacks";
 const char *clientExpirationOptionName = "client-expiration";
 
 
-Options::Options(int argc, char *argv[]) :
+Options::Options(int argc, const char * const *argv) :
     optionsDescription("ssh_cache options")
 {
     this->optionsDescription.add_options()
@@ -32,8 +32,12 @@ Options::Options(int argc, char *argv[]) :
         (fakeBackendHostOptionName, value<string>()->default_value("localhost"), "fake backend host")
         (fakeBackendPortOptionName, value<string>()->default_value("8024"), "fake backend port")
         (initialMitmAttacksOptionName, value<unsigned>()->default_value(1), "initial man-in-the-middle attacks count")
-        (clientExpirationOptionName, value<long>()->default_value(86400), "client expiration in seconds");
-    store(parse_command_line(argc, argv, this->optionsDescription), this->vm);
+        (clientExpirationOptionName, value<long>()->default_value(3600), "client expiration in seconds");
+
+    positional_options_description p;
+    p.add("", 0);
+
+    store(command_line_parser(argc, argv).options(this->optionsDescription).positional(p).run(), this->vm);
 }
 
 string Options::getDescription(void) const

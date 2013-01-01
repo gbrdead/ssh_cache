@@ -25,7 +25,7 @@ private:
     variables_map vm;
 
 public:
-    Options(int argc, char *argv[]);
+    Options(int argc, const char * const *argv);
 
     string getDescription(void) const;
 

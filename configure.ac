@@ -9,7 +9,7 @@ AM_PROG_CC_C_O
 LT_INIT
 AC_SUBST([LIBTOOL_DEPS])
 
-VOID_BOOST([thread system program_options])
+VOID_BOOST([thread system program_options unit_test_framework])
 
 if test "x${BOOST}" != "xyes"
 then
@@ -31,6 +31,11 @@ if test "x${HAVE_LIBboost_program_options}" != "xyes"
 then
     AC_MSG_ERROR([boost_program_options is required])
 fi
+if test "x${HAVE_LIBboost_unit_test_framework}" != "xyes"
+then
+    AC_MSG_WARN([boost_unit_test_framework is required for the tests])
+fi
+AM_CONDITIONAL(BOOST_UNIT_TEST_FRAMEWORK, test "x${HAVE_LIBboost_unit_test_framework}" = "xyes")
 
 SSH_CACHE_LDFLAGS=""
 _AI_LIST_APPEND_WO_DUPLICATES([${SSH_CACHE_LDFLAGS}], [${BOOST_LDFLAGS}], SSH_CACHE_LDFLAGS)
@@ -53,5 +58,5 @@ AC_SUBST([SSH_CACHE_CPPFLAGS])
 AC_SUBST([SSH_CACHE_CXXFLAGS])
 AC_SUBST([SSH_CACHE_LIBS])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile tests/Makefile])
 AC_OUTPUT
