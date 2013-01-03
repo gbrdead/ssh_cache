@@ -9,7 +9,9 @@ LDADD = $(SSH_CACHE_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIBS)
 
 noinst_PROGRAMS = ssh_cache_tests
 
-ssh_cache_tests_SOURCES = main.cpp OptionsTests.cpp \
+ssh_cache_tests_SOURCES = src/main.cpp \
+	src/OptionsTests.cpp src/TCPTests.cpp \
+	src/TestUtils.hpp src/TestUtils.cpp \
 	../src/SSHCache.hpp ../src/SSHCache.cpp \
 	../src/Server.hpp ../src/Server.cpp \
 	../src/ClientConnection.hpp ../src/ClientConnection.cpp \

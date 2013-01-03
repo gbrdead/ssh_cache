@@ -1,7 +1,16 @@
 #include "Options.hpp"
-using namespace org::voidland::ssh_cache;
 
 #include <boost/test/unit_test.hpp>
+
+
+namespace org
+{
+namespace voidland
+{
+namespace ssh_cache
+{
+namespace test
+{
 
 
 BOOST_AUTO_TEST_CASE(OptionsTestPositionalOptions)
@@ -204,4 +213,9 @@ BOOST_AUTO_TEST_CASE(OptionsTestClientExpirationInvalid)
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     BOOST_REQUIRE_THROW(Options(argc, argv), invalid_option_value);
+}
+
+}
+}
+}
 }

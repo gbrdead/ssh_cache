@@ -13,7 +13,6 @@ using namespace boost;
 using namespace boost::asio;
 using namespace boost::asio::error;
 using namespace boost::asio::ip;
-using namespace boost::system;
 
 #include <iostream>
 #include <list>
@@ -48,7 +47,8 @@ private:
 
 public:
     ServerInternal(const Options &options);
-    void run(void);
+    void run(void)
+        throw (system_error);
 };
 
 
@@ -143,6 +143,7 @@ ServerInternal::ServerInternal(const Options &options) :
 }
 
 void ServerInternal::run(void)
+    throw (system_error)
 {
     try
     {
@@ -173,7 +174,7 @@ void ServerInternal::run(void)
 
     if (!this->v4Acceptor && !this->v6Acceptor)
     {
-        throw runtime_error("Cannot create TCP server socket on port " + lexical_cast<string>(this->options.getPort()) + ".");
+        throw system_error(address_in_use, "Cannot create TCP server socket on port " + lexical_cast<string>(this->options.getPort()) + ".");
     }
 
     if (this->v6Acceptor)
@@ -207,6 +208,7 @@ Server::Server(const Options &options) :
 }
 
 void Server::run(void)
+    throw (system_error)
 {
     ServerInternal impl(this->options);
     impl.run();

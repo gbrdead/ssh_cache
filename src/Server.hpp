@@ -3,6 +3,8 @@
 
 #include "Options.hpp"
 
+#include <boost/system/system_error.hpp>
+
 
 namespace org
 {
@@ -12,6 +14,9 @@ namespace ssh_cache
 {
 
 
+using namespace boost::system;
+
+
 class Server
 {
 private:
@@ -19,7 +24,8 @@ private:
 
 public:
     Server(const Options &options);
-    void run(void);
+    void run(void)
+        throw (system_error);
 };
 
 
