@@ -1,6 +1,7 @@
 #include "Server.hpp"
 #include "ClientConnection.hpp"
 #include "Client.hpp"
+#include "SocketUtils.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -113,25 +114,11 @@ void ServerInternal::signalHandler(const error_code &error, int signalNumber)
 {
     if (this->v6Acceptor)
     {
-        try
-        {
-            this->v6Acceptor->close();
-        }
-        catch (const system_error &e)
-        {
-            cerr << "Error closing IPv6 server socket: " << e.what() << endl;
-        }
+        socket_utils::close(*this->v6Acceptor);
     }
     if (this->v4Acceptor)
     {
-        try
-        {
-            this->v4Acceptor->close();
-        }
-        catch (const system_error &e)
-        {
-            cerr << "Error closing IPv4 server socket: " << e.what() << endl;
-        }
+        socket_utils::close(*this->v4Acceptor);
     }
     this->ioService.stop();
 }

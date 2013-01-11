@@ -1,6 +1,5 @@
 #include "ClientConnection.hpp"
 #include "SocketUtils.hpp"
-using namespace org::voidland::ssh_cache::socket_utils;
 
 #include <boost/lexical_cast.hpp>
 
@@ -29,26 +28,26 @@ ClientConnection::ClientConnection(const Options &options, ClientService &client
 
     if (client->getMitmAttacksCount() < this->options.getInitialMitmAttacks())
     {
-        connect(this->backendSocket, this->options.getFakeBackendHost(), this->options.getFakeBackendPort());
+        socket_utils::connect(this->backendSocket, this->options.getFakeBackendHost(), this->options.getFakeBackendPort());
         client->addMitmAttack();
     }
     else
     {
-        connect(this->backendSocket, this->options.getRealBackendHost(), this->options.getRealBackendPort());
+        socket_utils::connect(this->backendSocket, this->options.getRealBackendHost(), this->options.getRealBackendPort());
     }
     client->connected();
 }
 
 void ClientConnection::send(void)
 {
-    transfer(this->backendSocket, *this->clientSocket);
-    close(*this->clientSocket);
+    socket_utils::transfer(this->backendSocket, *this->clientSocket);
+    socket_utils::close(*this->clientSocket);
 }
 
 void ClientConnection::receive(void)
 {
-    transfer(*this->clientSocket, this->backendSocket);
-    close(this->backendSocket);
+    socket_utils::transfer(*this->clientSocket, this->backendSocket);
+    socket_utils::close(this->backendSocket);
 }
 
 void ClientConnection::runSendingThread(shared_ptr<ClientConnection> &clientConn)
