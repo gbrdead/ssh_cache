@@ -1,6 +1,7 @@
 #ifndef _SSH_CACHE_TEST_UTILS_HPP_
 #define _SSH_CACHE_TEST_UTILS_HPP_
 
+#include <boost/asio.hpp>
 #include <boost/shared_ptr.hpp>
 
 #include <list>
@@ -18,6 +19,7 @@ namespace test
 
 
 using namespace boost;
+using namespace boost::asio::ip;
 using namespace std;
 
 
@@ -32,6 +34,8 @@ void transferSomeLines(
     list<shared_ptr<string> > &incomingLines, list<shared_ptr<string> > &outgoingLines);
 
 bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<string> > &l2);
+
+void writeLine(tcp::socket &socket, const string &line);
 
 }
 }

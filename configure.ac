@@ -9,7 +9,7 @@ AM_PROG_CC_C_O
 LT_INIT
 AC_SUBST([LIBTOOL_DEPS])
 
-VOID_BOOST([thread system program_options unit_test_framework])
+VOID_BOOST([thread system program_options unit_test_framework timer])
 
 if test "x${BOOST}" != "xyes"
 then
@@ -36,6 +36,7 @@ then
     AC_MSG_WARN([boost_unit_test_framework is required for the tests])
 fi
 AM_CONDITIONAL(BOOST_UNIT_TEST_FRAMEWORK, test "x${HAVE_LIBboost_unit_test_framework}" = "xyes")
+AM_CONDITIONAL(BOOST_TIMER, test "x${HAVE_LIBboost_timer}" = "xyes")
 
 SSH_CACHE_LDFLAGS=""
 _AI_LIST_APPEND_WO_DUPLICATES([${SSH_CACHE_LDFLAGS}], [${BOOST_LDFLAGS}], SSH_CACHE_LDFLAGS)

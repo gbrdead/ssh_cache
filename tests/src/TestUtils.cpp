@@ -134,9 +134,7 @@ void transferSomeLines(
     for (unsigned i = 0; i < lineCount; i++)
     {
         shared_ptr<string> outgoingLine(new string(generateRandomString()));
-        write(socket, buffer(outgoingLine->c_str(), outgoingLine->length() * sizeof(string::value_type)));
-        static string newLine("\n");
-        write(socket, buffer(newLine.c_str(), newLine.length() * sizeof(string::value_type)));
+        writeLine(socket, *outgoingLine);
 
         shared_ptr<string> incomingLine(new string());
         read_until(socket, buf, '\n');
@@ -167,6 +165,13 @@ bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<strin
     }
 
     return true;
+}
+
+void writeLine(tcp::socket &socket, const string &line)
+{
+    string tmpStr(line);
+    tmpStr += "\n";
+    write(socket, buffer(tmpStr.c_str(), tmpStr.length() * sizeof(string::value_type)));
 }
 
 

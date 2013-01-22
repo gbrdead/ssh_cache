@@ -46,9 +46,7 @@ void RandomResponseServer::lineReadHandler(const error_code &err, size_t size, s
             mutex::scoped_lock am(this->outgoingLinesMutex);
             this->outgoingLines.push_back(responseLine);
 
-            write(*socket, buffer(responseLine->c_str(), responseLine->length() * sizeof(string::value_type)));
-            static string newLine("\n");
-            write(*socket, buffer(newLine.c_str(), newLine.length() * sizeof(string::value_type)));
+            writeLine(*socket, *responseLine);
         }
     }
 

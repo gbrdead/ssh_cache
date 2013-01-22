@@ -9,11 +9,6 @@ using namespace boost::system;
 #include <iostream>
 using namespace std;
 
-//
-#include <iostream>
-#include <boost/date_time/posix_time/ptime.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-//
 
 namespace org
 {
@@ -64,25 +59,11 @@ void transfer(tcp::socket &sourceSocket, tcp::socket &targetSocket)
 
     do
     {
-        boost::posix_time::ptime t0 = boost::posix_time::microsec_clock::local_time();
-
         size_t bytesRead = sourceSocket.read_some(buffer(data, sizeof(data)), receiveError);
-
-        boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
-        boost::posix_time::time_duration t = t1 - t0;
-        std::cerr << "Gbr1: " << t.total_milliseconds() << std::endl;
-
         char *dataToSend = data;
         while (bytesRead > 0)
         {
-            t0 = boost::posix_time::microsec_clock::local_time();
-
             size_t bytesSent = targetSocket.write_some(buffer(dataToSend, bytesRead), sendError);
-
-            t1 = boost::posix_time::microsec_clock::local_time();
-            t = t1 - t0;
-            std::cerr << "Gbr2: " << t.total_milliseconds() << std::endl;
-
             bytesRead -= bytesSent;
             dataToSend += bytesSent / sizeof(*dataToSend);
         }

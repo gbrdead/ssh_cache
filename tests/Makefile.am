@@ -7,6 +7,13 @@ AM_CPPFLAGS = $(SSH_CACHE_CPPFLAGS) -I $(top_srcdir)/src
 AM_LDFLAGS = $(SSH_CACHE_LDFLAGS)
 LDADD = $(SSH_CACHE_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIBS)
 
+if BOOST_TIMER
+
+AM_CXXFLAGS += $(BOOST_TIMER_CXXFLAGS)
+LDADD += $(BOOST_TIMER_LIBS)
+
+endif
+
 noinst_PROGRAMS = ssh_cache_tests
 
 ssh_cache_tests_SOURCES = src/main.cpp \
