@@ -25,10 +25,6 @@ using namespace boost::this_thread;
 #include <string>
 using namespace std;
 
-#include <sys/types.h>
-#include <signal.h>
-#include <unistd.h>
-
 
 namespace org
 {
@@ -39,11 +35,6 @@ namespace ssh_cache
 namespace test
 {
 
-
-static void runServerThreadProc(Server &server)
-{
-    server.run();
-}
 
 BOOST_AUTO_TEST_CASE(PortAlreadyInUseTest)
 {
@@ -125,13 +116,10 @@ BOOST_AUTO_TEST_CASE(GeneralTest)
     };
     int argc = sizeof(argv) / sizeof(argv[0]);
     Options options(argc, argv);
+    ServerRunner serverRunner(options);
 
     RandomResponseServer realBackendServer(realBackendPort);
     RandomResponseServer fakeBackendServer(fakeBakendPort);
-
-    Server server(options);
-    thread runServerThread(&runServerThreadProc, ref(server));
-    sleep(seconds(1));  // Let the server open the acceptor(s) and register its signal handler.
 
     list<shared_ptr<string> > fakeIncomingLines, fakeOutgoingLines;
     for (unsigned i = 0; i < fakeConnectionsCount; i++)
@@ -148,9 +136,51 @@ BOOST_AUTO_TEST_CASE(GeneralTest)
     BOOST_REQUIRE(fakeOutgoingLines == fakeBackendServer.getIncomingLines());
     BOOST_REQUIRE(realIncomingLines == realBackendServer.getOutgoingLines());
     BOOST_REQUIRE(realOutgoingLines == realBackendServer.getIncomingLines());
+}
 
-    kill(getpid(), SIGTERM);
-    runServerThread.join();
+BOOST_AUTO_TEST_CASE(ClientExpirationTest)
+{
+    unsigned short listenPort, realBackendPort, fakeBakendPort;
+    findFreePorts(listenPort, realBackendPort, fakeBakendPort);
+
+    string listenPortAsString = lexical_cast<string>(listenPort);
+    string realBackendPortAsString = lexical_cast<string>(realBackendPort);
+    string fakeBackendPortAsString = lexical_cast<string>(fakeBakendPort);
+    string mitmAttacksAsString = lexical_cast<string>(1);
+    const char *argv[] =
+    {
+        "ssh_cache_tests",
+        "--port",
+        listenPortAsString.c_str(),
+        "--real-backend-host",
+        "localhost",
+        "--real-backend-port",
+        realBackendPortAsString.c_str(),
+        "--fake-backend-host",
+        "localhost",
+        "--fake-backend-port",
+        fakeBackendPortAsString.c_str(),
+        "--initial-mitm-attacks",
+        mitmAttacksAsString.c_str(),
+        "--client-expiration",
+        "1"
+    };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    Options options(argc, argv);
+    ServerRunner serverRunner(options);
+
+    RandomResponseServer realBackendServer(realBackendPort);
+    RandomResponseServer fakeBackendServer(fakeBakendPort);
+
+    list<shared_ptr<string> > fakeIncomingLines, fakeOutgoingLines;
+    transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
+    sleep(seconds(1));
+    transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
+
+    BOOST_REQUIRE(fakeIncomingLines == fakeBackendServer.getOutgoingLines());
+    BOOST_REQUIRE(fakeOutgoingLines == fakeBackendServer.getIncomingLines());
+    BOOST_REQUIRE(realBackendServer.getOutgoingLines().empty());
+    BOOST_REQUIRE(realBackendServer.getIncomingLines().empty());
 }
 
 

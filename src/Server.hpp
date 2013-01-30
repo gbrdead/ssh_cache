@@ -17,15 +17,20 @@ namespace ssh_cache
 using namespace boost::system;
 
 
+class ServerInternal;
+
 class Server
 {
 private:
-    const Options &options;
+    ServerInternal *impl;
 
 public:
     Server(const Options &options);
+    ~Server(void);
+
     void run(void)
         throw (system_error);
+    void ensureRunning(void);
 };
 
 

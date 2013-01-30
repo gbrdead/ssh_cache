@@ -15,6 +15,10 @@ using namespace boost::system;
 #include <iostream>
 #include <sstream>
 
+#include <sys/types.h>
+#include <signal.h>
+#include <unistd.h>
+
 
 namespace org
 {
@@ -172,6 +176,24 @@ void writeLine(tcp::socket &socket, const string &line)
     string tmpStr(line);
     tmpStr += "\n";
     write(socket, buffer(tmpStr.c_str(), tmpStr.length() * sizeof(string::value_type)));
+}
+
+
+ServerRunner::ServerRunner(const Options &options) :
+    server(options), runServerThread(&runServerThreadProc, ref(server))
+{
+    this->server.ensureRunning();
+}
+
+void ServerRunner::runServerThreadProc(Server &server)
+{
+    server.run();
+}
+
+ServerRunner::~ServerRunner(void)
+{
+    kill(getpid(), SIGTERM);
+    this->runServerThread.join();
 }
 
 

@@ -40,6 +40,10 @@ private:
     list<weak_ptr<ClientConnection> > clientConnections;
     mutex clientConnectionsMutex;
 
+    bool isRunning;
+    condition_variable isRunningCondition;
+    mutex isRunningMutex;
+
 
     void acceptHandler(const error_code &error, shared_ptr<tcp::socket> socket, tcp::acceptor &acceptor);
     void asyncAcceptor(tcp::acceptor &acceptor);
@@ -50,6 +54,7 @@ public:
     ServerInternal(const Options &options);
     void run(void)
         throw (system_error);
+    void ensureRunning(void);
 };
 
 
@@ -127,6 +132,7 @@ void ServerInternal::signalHandler(const error_code &error, int signalNumber)
 ServerInternal::ServerInternal(const Options &options) :
     options(options), clientService(options, ioService)
 {
+    this->isRunning = false;
 }
 
 void ServerInternal::run(void)
@@ -176,6 +182,12 @@ void ServerInternal::run(void)
     signal_set signals(this->ioService, SIGINT, SIGTERM);
     signals.async_wait(bind(&ServerInternal::signalHandler, this, placeholders::error, placeholders::signal_number));
 
+    {
+        mutex::scoped_lock lock(this->isRunningMutex);
+        this->isRunning = true;
+    }
+    this->isRunningCondition.notify_all();
+
     this->ioService.run();
 
     for (list<weak_ptr<ClientConnection> >::iterator i = this->clientConnections.begin(); i != this->clientConnections.end(); i++)
@@ -188,17 +200,35 @@ void ServerInternal::run(void)
     this->clientConnections.clear();
 }
 
-
-Server::Server(const Options &options) :
-    options(options)
+void ServerInternal::ensureRunning(void)
 {
+    mutex::scoped_lock lock(this->isRunningMutex);
+    while (!this->isRunning)
+    {
+        this->isRunningCondition.wait(lock);
+    }
+}
+
+
+Server::Server(const Options &options)
+{
+    this->impl = new ServerInternal(options);
+}
+
+Server::~Server(void)
+{
+    delete this->impl;
 }
 
 void Server::run(void)
     throw (system_error)
 {
-    ServerInternal impl(this->options);
-    impl.run();
+    this->impl->run();
+}
+
+void Server::ensureRunning(void)
+{
+    this->impl->ensureRunning();
 }
 
 
