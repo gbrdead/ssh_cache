@@ -70,7 +70,8 @@ void transfer(tcp::socket &sourceSocket, tcp::socket &targetSocket)
 
         if (receiveError)
         {
-            if (receiveError != eof)
+            if (receiveError != eof  &&         // The remote peer has closed the connection.
+                receiveError != bad_descriptor) // Another thread has closed sourceSocket.
             {
                 cerr << "Error receiving from socket: " << receiveError.message() << endl;
             }

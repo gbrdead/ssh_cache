@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(ClientExpirationTest)
 
     list<shared_ptr<string> > fakeIncomingLines, fakeOutgoingLines;
     transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
-    sleep(seconds(1));
+    sleep(milliseconds(1250));
     transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
 
     BOOST_REQUIRE(fakeIncomingLines == fakeBackendServer.getOutgoingLines());
