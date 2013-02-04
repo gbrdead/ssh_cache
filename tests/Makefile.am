@@ -1,20 +1,14 @@
-AUTOMAKE_OPTIONS = subdir-objects
+noinst_PROGRAMS =
 
-if BOOST_UNIT_TEST_FRAMEWORK
 
-AM_CXXFLAGS = $(SSH_CACHE_CXXFLAGS) $(BOOST_UNIT_TEST_FRAMEWORK_CXXFLAGS)
-AM_CPPFLAGS = $(SSH_CACHE_CPPFLAGS) -I $(top_srcdir)/src
-AM_LDFLAGS = $(SSH_CACHE_LDFLAGS)
-LDADD = $(SSH_CACHE_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIBS)
+if SSH_CACHE_TESTS
 
-if BOOST_TIMER
+noinst_PROGRAMS += ssh_cache_tests
 
-AM_CXXFLAGS += $(BOOST_TIMER_CXXFLAGS)
-LDADD += $(BOOST_TIMER_LIBS)
-
-endif
-
-noinst_PROGRAMS = ssh_cache_tests
+ssh_cache_tests_CXXFLAGS = $(SSH_CACHE_TESTS_CXXFLAGS)
+ssh_cache_tests_CPPFLAGS = $(SSH_CACHE_TESTS_CPPFLAGS)
+ssh_cache_tests_LDFLAGS = $(SSH_CACHE_TESTS_LDFLAGS)
+ssh_cache_tests_LDADD = $(SSH_CACHE_TESTS_LIBS)
 
 ssh_cache_tests_SOURCES = src/main.cpp \
 	src/OptionsTests.cpp src/TCPTests.cpp \
@@ -28,5 +22,19 @@ ssh_cache_tests_SOURCES = src/main.cpp \
 	../src/Options.hpp ../src/Options.cpp
 
 TESTS = ssh_cache_tests
+
+endif
+
+
+if SSH_CACHE_PERF_TESTS
+
+noinst_PROGRAMS += ssh_cache_perf_tests
+
+ssh_cache_perf_tests_CXXFLAGS = $(SSH_CACHE_PERF_TESTS_CXXFLAGS)
+ssh_cache_perf_tests_CPPFLAGS = $(SSH_CACHE_PERF_TESTS_CPPFLAGS)
+ssh_cache_perf_tests_LDFLAGS = $(SSH_CACHE_PERF_TESTS_LDFLAGS)
+ssh_cache_perf_tests_LDADD = $(SSH_CACHE_PERF_TESTS_LIBS)
+
+ssh_cache_perf_tests_SOURCES = src/PerformanceTests.cpp
 
 endif
