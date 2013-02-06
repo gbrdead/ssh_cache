@@ -35,6 +35,8 @@ ssh_cache_perf_tests_CPPFLAGS = $(SSH_CACHE_PERF_TESTS_CPPFLAGS)
 ssh_cache_perf_tests_LDFLAGS = $(SSH_CACHE_PERF_TESTS_LDFLAGS)
 ssh_cache_perf_tests_LDADD = $(SSH_CACHE_PERF_TESTS_LIBS)
 
-ssh_cache_perf_tests_SOURCES = src/PerformanceTests.cpp
+ssh_cache_perf_tests_SOURCES = src/perf/main.cpp \
+	src/perf/PerfTests.hpp src/perf/PerfTests.cpp \
+	src/perf/PerfTestsOptions.hpp src/perf/PerfTestsOptions.cpp 
 
 endif
