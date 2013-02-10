@@ -1,13 +1,20 @@
 #include "PerfTests.hpp"
 
 #include <boost/bind.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/shared_ptr.hpp>
 
-#include <cstdlib>
 #include <cstdio>
 #include <list>
 #include <sstream>
 using namespace std;
+
+extern "C"
+{
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+}
 
 
 namespace org
@@ -24,19 +31,54 @@ namespace performance
 
 void PerformanceTest::execute(void)
 {
-    ostringstream os;
-    os << "sshpass -p \"" << this->options.getPassword() << "\" ";
-    os << "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ";
-    os << "-p " << this->options.getPort() << " " << this->options.getUserName() << "@" << this->options.getHost();
-    string command = os.str();
+    pid_t pid = fork();
+
+    if (pid == -1)
+    {
+        perror("fork");
+        this->fail();
+        return;
+    }
+
+    if (pid == 0)
+    {
+        string portAsString(lexical_cast<string>(this->options.getPort()));
+        string userNameAndHost = this->options.getUserName() + "@" + this->options.getHost();
+        const char *const argv[] =
+        {
+            "sshpass",
+                "-p", this->options.getPassword().c_str(),
+                "ssh",
+                    "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null",
+                    "-p", portAsString.c_str(),
+                    userNameAndHost.c_str(),
+            0
+        };
+
+        execvp("sshpass", (char * const *)argv);
+        perror("execvp");
+        this->fail();
+        return;
+    }
+
 
     cpu_timer timer;
-    int error = std::system(command.c_str());
+
+    int status;
+    if (waitpid(pid, &status, 0 /* WNOHANG */) == -1)
+    {
+        perror("waitpid");
+        this->fail();
+        return;
+    }
+
     nanosecond_type ns = timer.elapsed().wall;
 
-    if (error == -1)
+    if (!WIFEXITED(status)  ||  WEXITSTATUS(status) != 0)
     {
-        perror("");
+        this->fail();
+        return;
     }
 
     {
@@ -45,10 +87,6 @@ void PerformanceTest::execute(void)
         {
             this->maxTime = ns;
         }
-        if (error != 0)
-        {
-            this->success = false;
-        }
     }
 }
 
@@ -56,6 +94,12 @@ void PerformanceTest::executeOnce(barrier &b)
 {
     b.wait();
     this->execute();
+}
+
+void PerformanceTest::fail(void)
+{
+    this->success = false;
+    // TODO: force all of the running threads to abort.
 }
 
 bool PerformanceTest::execute(unsigned count)

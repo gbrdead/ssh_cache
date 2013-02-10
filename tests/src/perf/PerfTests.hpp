@@ -34,6 +34,7 @@ private:
 
     void execute(void);
     void executeOnce(barrier &b);
+    void fail(void);
 
 public:
     PerformanceTest(const Options &options);

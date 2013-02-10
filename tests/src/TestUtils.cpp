@@ -15,9 +15,12 @@ using namespace boost::system;
 #include <iostream>
 #include <sstream>
 
+extern "C"
+{
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+}
 
 
 namespace org

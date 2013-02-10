@@ -1,8 +1,6 @@
 #include "ClientConnection.hpp"
 #include "SocketUtils.hpp"
 
-#include <boost/lexical_cast.hpp>
-
 #include <iostream>
 #include <string>
 using namespace std;
