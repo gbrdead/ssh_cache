@@ -14,6 +14,7 @@ using namespace boost::system;
 #include <ctime>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 extern "C"
 {
