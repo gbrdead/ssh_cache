@@ -40,6 +40,7 @@ private:
     volatile bool failure;
     set<pid_t> childProcesses;
 
+    unsigned successfulConnectionsUntilFirstError;
     nanosecond_type maxTime;
     mutex maxTimeMutex;
 
@@ -54,6 +55,21 @@ public:
 
     bool execute(unsigned count);
     nanosecond_type getMaxTime(void);
+    unsigned getSuccessfulConnectionsUntilFirstError(void);
+};
+
+
+class PerformanceTestsExecutor
+{
+private:
+    PerformanceTest perfTest, perfTestForRecovery;
+
+    bool execute(unsigned count);
+    pair<unsigned, nanosecond_type> findGreatestSuccess(unsigned lowCount, unsigned highCount, nanosecond_type lowMaxTime);
+
+public:
+    PerformanceTestsExecutor(const Options &options);
+    void execute(void);
 };
 
 
