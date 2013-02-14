@@ -82,6 +82,7 @@ void PerformanceTest::execute(void)
             dup2(devNullFD, 1);
             dup2(devNullFD, 2);
             close(devNullFD);
+
             execvp("sshpass", (char * const *)argv);
             exit(1);
         }
