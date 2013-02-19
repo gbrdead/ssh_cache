@@ -25,6 +25,13 @@ using namespace boost::this_thread;
 #include <string>
 using namespace std;
 
+extern "C"
+{
+#include <sys/types.h>
+#include <signal.h>
+#include <unistd.h>
+}
+
 
 namespace org
 {
@@ -34,6 +41,37 @@ namespace ssh_cache
 {
 namespace test
 {
+
+
+class ServerRunner
+{
+private:
+    Server server;
+    thread runServerThread;
+
+    static void runServerThreadProc(Server &server);
+
+public:
+    ServerRunner(const Options &options);
+    ~ServerRunner(void);
+};
+
+ServerRunner::ServerRunner(const Options &options) :
+    server(options), runServerThread(&runServerThreadProc, ref(server))
+{
+    this->server.ensureRunning();
+}
+
+void ServerRunner::runServerThreadProc(Server &server)
+{
+    server.run();
+}
+
+ServerRunner::~ServerRunner(void)
+{
+    kill(getpid(), SIGTERM);
+    this->runServerThread.join();
+}
 
 
 BOOST_AUTO_TEST_CASE(PortAlreadyInUseTest)

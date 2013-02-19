@@ -16,13 +16,6 @@ using namespace boost::system;
 #include <sstream>
 #include <stdexcept>
 
-extern "C"
-{
-#include <sys/types.h>
-#include <signal.h>
-#include <unistd.h>
-}
-
 
 namespace org
 {
@@ -138,15 +131,12 @@ void transferSomeLines(
     unsigned lineCount = lineCountDist(gen);
 
     asio::streambuf buf;
-    istream is(&buf);
     for (unsigned i = 0; i < lineCount; i++)
     {
         shared_ptr<string> outgoingLine(new string(generateRandomString()));
         writeLine(socket, *outgoingLine);
 
-        shared_ptr<string> incomingLine(new string());
-        read_until(socket, buf, '\n');
-        getline(is, *incomingLine);
+        shared_ptr<string> incomingLine(new string(readLine(socket, buf)));
 
         outgoingLines.push_back(outgoingLine);
         incomingLines.push_back(incomingLine);
@@ -176,28 +166,21 @@ bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<strin
 }
 
 void writeLine(tcp::socket &socket, const string &line)
+    throw (system_error)
 {
     string tmpStr(line);
     tmpStr += "\n";
     write(socket, buffer(tmpStr.c_str(), tmpStr.length() * sizeof(string::value_type)));
 }
 
-
-ServerRunner::ServerRunner(const Options &options) :
-    server(options), runServerThread(&runServerThreadProc, ref(server))
+string readLine(tcp::socket &socket, asio::streambuf &buf)
+    throw (system_error)
 {
-    this->server.ensureRunning();
-}
-
-void ServerRunner::runServerThreadProc(Server &server)
-{
-    server.run();
-}
-
-ServerRunner::~ServerRunner(void)
-{
-    kill(getpid(), SIGTERM);
-    this->runServerThread.join();
+    string line;
+    istream is(&buf);
+    read_until(socket, buf, '\n');
+    getline(is, line);
+    return line;
 }
 
 

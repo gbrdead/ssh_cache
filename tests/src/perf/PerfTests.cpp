@@ -1,9 +1,13 @@
 #include "PerfTests.hpp"
+#include "SocketUtils.hpp"
+#include "TestUtils.hpp"
+using namespace org::voidland::ssh_cache;
+using namespace org::voidland::ssh_cache::test;
 
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
+using namespace boost::system;
 
 #include <cmath>
 #include <cstdio>
@@ -35,7 +39,75 @@ namespace performance
 {
 
 
-void PerformanceTest::execute(void)
+void PerformanceTest::executeOnce(barrier &b)
+{
+    b.wait();
+    this->execute();
+}
+
+void PerformanceTest::fail(void)
+{
+    if (this->failure)  // Non-synchronized access => this->failure must be volatile.
+    {
+        return;
+    }
+    this->cleanupAfterFailure();
+}
+
+bool PerformanceTest::execute(unsigned count)
+{
+    barrier b(count);
+    list<shared_ptr<thread> > threads;
+
+    this->successfulConnectionsUntilFirstError = 0;
+    this->maxTime = 0;
+    this->failure = false;
+
+    for (unsigned i = 0; i < count; i++)
+    {
+        shared_ptr<thread> thr(new thread(&PerformanceTest::executeOnce, this, ref(b)));
+        threads.push_back(thr);
+    }
+
+    for (list<shared_ptr<thread> >::iterator i = threads.begin(); i != threads.end(); i++)
+    {
+        (*i)->join();
+    }
+
+    return !this->failure;
+}
+
+PerformanceTest::PerformanceTest(const Options &options) :
+    options(options)
+{
+}
+
+PerformanceTest::~PerformanceTest(void)
+{
+}
+
+nanosecond_type PerformanceTest::getMaxTime(void)
+{
+    return this->maxTime;
+}
+
+unsigned PerformanceTest::getSuccessfulConnectionsUntilFirstError(void)
+{
+    return this->successfulConnectionsUntilFirstError;
+}
+
+
+
+RealPerformanceTest::RealPerformanceTest(const Options &options) :
+    PerformanceTest(options)
+{
+}
+
+RealPerformanceTest::~RealPerformanceTest(void)
+{
+}
+
+void RealPerformanceTest::execute(void)
 {
     pid_t pid;
     scoped_ptr<cpu_timer> timer;
@@ -131,19 +203,8 @@ void PerformanceTest::execute(void)
     }
 }
 
-void PerformanceTest::executeOnce(barrier &b)
+void RealPerformanceTest::cleanupAfterFailure(void)
 {
-    b.wait();
-    this->execute();
-}
-
-void PerformanceTest::fail(void)
-{
-    if (this->failure)
-    {
-        return;
-    }
-
     mutex::scoped_lock am(this->bigMutex);
     this->failure = true;
 
@@ -159,76 +220,157 @@ void PerformanceTest::fail(void)
     }
 }
 
-bool PerformanceTest::execute(unsigned count)
+bool RealPerformanceTest::execute(unsigned count)
 {
-    barrier b(count);
-    list<shared_ptr<thread> > threads;
-
-    this->successfulConnectionsUntilFirstError = 0;
-    this->maxTime = 0;
-    this->failure = false;
-
-    for (unsigned i = 0; i < count; i++)
-    {
-        shared_ptr<thread> thr(new thread(&PerformanceTest::executeOnce, this, ref(b)));
-        threads.push_back(thr);
-    }
-
-    for (list<shared_ptr<thread> >::iterator i = threads.begin(); i != threads.end(); i++)
-    {
-        (*i)->join();
-    }
-
+    bool retVal = PerformanceTest::execute(count);
     if (!this->childProcesses.empty())
     {
         throw runtime_error("childProcesses is not empty!");
     }
-
-    return !this->failure;
-}
-
-PerformanceTest::PerformanceTest(const Options &options) :
-    options(options)
-{
-}
-
-nanosecond_type PerformanceTest::getMaxTime(void)
-{
-    return this->maxTime;
-}
-
-unsigned PerformanceTest::getSuccessfulConnectionsUntilFirstError(void)
-{
-    return this->successfulConnectionsUntilFirstError;
+    return retVal;
 }
 
 
-PerformanceTestsExecutor::PerformanceTestsExecutor(const Options &options) :
-    perfTest(options), perfTestForRecovery(options)
+
+MockPerformanceTest::MockPerformanceTest(const Options &options) :
+    PerformanceTest(options)
 {
+}
+
+MockPerformanceTest::~MockPerformanceTest(void)
+{
+}
+
+void MockPerformanceTest::execute(void)
+{
+    shared_ptr<tcp::socket> socket(new tcp::socket(this->ioService));
+    cpu_timer timer;
+
+    try
+    {
+        socket_utils::connect(*socket, this->options.getHost(), lexical_cast<string>(this->options.getPort()));
+    }
+    catch (const system_error &e)
+    {
+        this->fail();
+        return;
+    }
+
+    {
+        timer.stop();
+        mutex::scoped_lock am(this->bigMutex);
+        if (this->failure)
+        {
+            socket_utils::close(*socket);
+            return;
+        }
+        this->connections.insert(socket);
+        timer.resume();
+    }
+
+    const static string line("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
+
+    bool thisFailed = false;
+    try
+    {
+        asio::streambuf buf;
+        for (unsigned i = 0; i < 11; i++)
+        {
+            writeLine(*socket, line);
+            readLine(*socket, buf);
+        }
+        socket->shutdown(tcp::socket::shutdown_both);
+        socket->close();
+    }
+    catch (const system_error &e)
+    {
+        socket_utils::close(*socket);
+        thisFailed = true;
+    }
+
+    nanosecond_type ns = timer.elapsed().wall;
+    {
+        mutex::scoped_lock am(this->bigMutex);
+        this->connections.erase(socket);
+        if (!this->failure  &&  !thisFailed)
+        {
+            this->successfulConnectionsUntilFirstError++;
+        }
+    }
+
+    if (thisFailed)
+    {
+        this->fail();
+        return;
+    }
+
+    {
+        mutex::scoped_lock am(this->maxTimeMutex);
+        if (this->maxTime < ns)
+        {
+            this->maxTime = ns;
+        }
+    }
+}
+
+void MockPerformanceTest::cleanupAfterFailure(void)
+{
+    mutex::scoped_lock am(this->bigMutex);
+    this->failure = true;
+
+    for (set<shared_ptr<tcp::socket> >::const_iterator i = this->connections.begin(); i != this->connections.end(); i++)
+    {
+        socket_utils::close(**i);
+    }
+}
+
+bool MockPerformanceTest::execute(unsigned count)
+{
+    bool retVal = PerformanceTest::execute(count);
+    if (!this->connections.empty())
+    {
+        throw runtime_error("connections is not empty!");
+    }
+    return retVal;
+}
+
+
+
+PerformanceTestsExecutor::PerformanceTestsExecutor(const Options &options)
+{
+    if (options.isMock())
+    {
+        this->perfTest.reset(new MockPerformanceTest(options));
+        this->perfTestForRecovery.reset(new MockPerformanceTest(options));
+    }
+    else
+    {
+        this->perfTest.reset(new RealPerformanceTest(options));
+        this->perfTestForRecovery.reset(new RealPerformanceTest(options));
+    }
 }
 
 bool PerformanceTestsExecutor::execute(unsigned count)
 {
     cout << "Testing with " << count << " simultaneous connections... " << flush;
-    bool success = this->perfTest.execute(count);
+    bool success = this->perfTest->execute(count);
     if (success)
     {
-        cout << "success. The maximum response time is " << this->perfTest.getMaxTime() / 1000000 << " ms.";
+        cout << "success. The maximum response time is " << this->perfTest->getMaxTime() / 1000000 << " ms.";
     }
     else
     {
-        cout << "failure. The count of successful connections before the first failure is " << this->perfTest.getSuccessfulConnectionsUntilFirstError() << ".";
+        cout << "failure. The count of successful connections before the first failure is " << this->perfTest->getSuccessfulConnectionsUntilFirstError() << ".";
     }
     cout << endl;
 
     // Give the target a chance to clean up.
     cpu_timer timer;
-    while (!this->perfTestForRecovery.execute(1));
+    while (!this->perfTestForRecovery->execute(1));
     nanosecond_type recoveryTime = timer.elapsed().wall;
     cout << "The recovery time is " << recoveryTime / 1000000 << " ms." << endl;
 
-    if (this->perfTest.getSuccessfulConnectionsUntilFirstError() == 0)
+    if (this->perfTest->getSuccessfulConnectionsUntilFirstError() == 0)
     {
         return this->execute(count);
     }
@@ -246,7 +388,7 @@ pair<unsigned, nanosecond_type> PerformanceTestsExecutor::findGreatestSuccess(un
     unsigned count = (highCount - lowCount) / 2 + lowCount;
     if (this->execute(count))
     {
-        return this->findGreatestSuccess(count, highCount, perfTest.getMaxTime());
+        return this->findGreatestSuccess(count, highCount, this->perfTest->getMaxTime());
     }
     return this->findGreatestSuccess(lowCount, count, lowMaxTime);
 }
@@ -264,7 +406,7 @@ void PerformanceTestsExecutor::execute(void)
             break;
         }
         lowCount = highCount;
-        lowMaxTime = this->perfTest.getMaxTime();
+        lowMaxTime = this->perfTest->getMaxTime();
     }
     if (highCount == lowCount)
     {

@@ -38,7 +38,9 @@ ssh_cache_perf_tests_LDADD = $(SSH_CACHE_PERF_TESTS_LIBS)
 
 ssh_cache_perf_tests_SOURCES = src/perf/main.cpp \
 	src/perf/PerfTests.hpp src/perf/PerfTests.cpp \
-	src/perf/PerfTestsOptions.hpp src/perf/PerfTestsOptions.cpp
+	src/perf/PerfTestsOptions.hpp src/perf/PerfTestsOptions.cpp \
+	src/TestUtils.hpp src/TestUtils.cpp \
+	../src/SocketUtils.hpp ../src/SocketUtils.cpp 
 
 endif
 
@@ -50,9 +52,9 @@ ssh_cache_perf_LDFLAGS = $(SSH_CACHE_PERF_LDFLAGS)
 ssh_cache_perf_LDADD = $(SSH_CACHE_PERF_LIBS)
 
 ssh_cache_perf_SOURCES = src/perf/mainServer.cpp \
+	src/perf/EchoServer.hpp src/perf/EchoServer.cpp \
 	src/TestUtils.hpp src/TestUtils.cpp \
 	src/TestServer.hpp src/TestServer.cpp \
-	src/perf/EchoServer.hpp src/perf/EchoServer.cpp \
 	../src/SSHCache.hpp ../src/SSHCache.cpp \
 	../src/Server.hpp ../src/Server.cpp \
 	../src/ClientConnection.hpp ../src/ClientConnection.cpp \

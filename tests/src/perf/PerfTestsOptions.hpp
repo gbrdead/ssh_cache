@@ -34,6 +34,7 @@ public:
     string getDescription(void) const;
 
     bool isHelp(void) const;
+    bool isMock(void) const;
     const string &getHost(void) const;
     unsigned short getPort(void) const;
     const string &getUserName(void) const;

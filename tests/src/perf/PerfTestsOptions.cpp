@@ -15,11 +15,12 @@ namespace performance
 {
 
 
-const char *helpOptionName = "help";
-const char *hostOptionName = "host";
-const char *portOptionName = "port";
-const char *userNameOptionName = "username";
-const char *passwordOptionName = "password";
+static const char *helpOptionName = "help";
+static const char *mockOptionName = "mock";
+static const char *hostOptionName = "host";
+static const char *portOptionName = "port";
+static const char *userNameOptionName = "username";
+static const char *passwordOptionName = "password";
 
 
 Options::Options(int argc, const char * const *argv) :
@@ -27,6 +28,7 @@ Options::Options(int argc, const char * const *argv) :
 {
     this->optionsDescription.add_options()
         (helpOptionName, "help")
+        (mockOptionName, "run against ssh_cache_perf")
         (hostOptionName, value<string>()->default_value("es"), "ssh_cache host")
         (portOptionName, value<unsigned short>()->default_value(8022), "ssh_cache port")
         (userNameOptionName, value<string>()->default_value("gc"), "ssh_cache user name")
@@ -48,6 +50,11 @@ string Options::getDescription(void) const
 bool Options::isHelp(void) const
 {
     return this->vm.count(helpOptionName) > 0;
+}
+
+bool Options::isMock(void) const
+{
+    return this->vm.count(mockOptionName) > 0;
 }
 
 const string &Options::getHost(void) const

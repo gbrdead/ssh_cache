@@ -1,11 +1,8 @@
 #ifndef _SSH_CACHE_TEST_UTILS_HPP_
 #define _SSH_CACHE_TEST_UTILS_HPP_
 
-#include "Server.hpp"
-
 #include <boost/asio.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
 
 #include <list>
 #include <string>
@@ -23,6 +20,7 @@ namespace test
 
 using namespace boost;
 using namespace boost::asio::ip;
+using namespace boost::system;
 using namespace std;
 
 
@@ -38,21 +36,11 @@ void transferSomeLines(
 
 bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<string> > &l2);
 
-void writeLine(tcp::socket &socket, const string &line);
+void writeLine(tcp::socket &socket, const string &line)
+    throw (system_error);
 
-
-class ServerRunner
-{
-private:
-    Server server;
-    thread runServerThread;
-
-    static void runServerThreadProc(Server &server);
-
-public:
-    ServerRunner(const Options &options);
-    ~ServerRunner(void);
-};
+string readLine(tcp::socket &socket, asio::streambuf &buf)
+    throw (system_error);
 
 
 }

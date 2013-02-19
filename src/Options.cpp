@@ -11,14 +11,14 @@ namespace ssh_cache
 {
 
 
-const char *helpOptionName = "help";
-const char *portOptionName = "port";
-const char *realBackendHostOptionName = "real-backend-host";
-const char *realBackendPortOptionName = "real-backend-port";
-const char *fakeBackendHostOptionName = "fake-backend-host";
-const char *fakeBackendPortOptionName = "fake-backend-port";
-const char *initialMitmAttacksOptionName = "initial-mitm-attacks";
-const char *clientExpirationOptionName = "client-expiration";
+static const char *helpOptionName = "help";
+static const char *portOptionName = "port";
+static const char *realBackendHostOptionName = "real-backend-host";
+static const char *realBackendPortOptionName = "real-backend-port";
+static const char *fakeBackendHostOptionName = "fake-backend-host";
+static const char *fakeBackendPortOptionName = "fake-backend-port";
+static const char *initialMitmAttacksOptionName = "initial-mitm-attacks";
+static const char *clientExpirationOptionName = "client-expiration";
 
 
 Options::Options(int argc, const char * const *argv) :
