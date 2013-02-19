@@ -1,9 +1,10 @@
 noinst_PROGRAMS =
+check_PROGRAMS =
 
 
 if SSH_CACHE_TESTS
 
-noinst_PROGRAMS += ssh_cache_tests
+check_PROGRAMS += ssh_cache_tests
 
 ssh_cache_tests_CXXFLAGS = $(SSH_CACHE_TESTS_CXXFLAGS)
 ssh_cache_tests_CPPFLAGS = $(SSH_CACHE_TESTS_CPPFLAGS)
@@ -15,7 +16,6 @@ ssh_cache_tests_SOURCES = src/main.cpp \
 	src/TestUtils.hpp src/TestUtils.cpp \
 	src/TestServer.hpp src/TestServer.cpp \
 	src/RandomResponseServer.hpp src/RandomResponseServer.cpp \
-	../src/SSHCache.hpp ../src/SSHCache.cpp \
 	../src/Server.hpp ../src/Server.cpp \
 	../src/ClientConnection.hpp ../src/ClientConnection.cpp \
 	../src/SocketUtils.hpp ../src/SocketUtils.cpp \
@@ -55,7 +55,6 @@ ssh_cache_perf_SOURCES = src/perf/mainServer.cpp \
 	src/perf/EchoServer.hpp src/perf/EchoServer.cpp \
 	src/TestUtils.hpp src/TestUtils.cpp \
 	src/TestServer.hpp src/TestServer.cpp \
-	../src/SSHCache.hpp ../src/SSHCache.cpp \
 	../src/Server.hpp ../src/Server.cpp \
 	../src/ClientConnection.hpp ../src/ClientConnection.cpp \
 	../src/SocketUtils.hpp ../src/SocketUtils.cpp \

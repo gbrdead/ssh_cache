@@ -15,7 +15,6 @@ ssh_cache_LDADD = $(SSH_CACHE_LIBS)
 sbin_PROGRAMS = ssh_cache
 
 ssh_cache_SOURCES = src/main.cpp \
-	src/SSHCache.hpp src/SSHCache.cpp \
 	src/Server.hpp src/Server.cpp \
 	src/ClientConnection.hpp src/ClientConnection.cpp \
 	src/SocketUtils.hpp src/SocketUtils.cpp \
