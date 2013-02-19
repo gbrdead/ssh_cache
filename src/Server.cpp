@@ -167,7 +167,7 @@ void ServerInternal::run(void)
 
     if (!this->v4Acceptor && !this->v6Acceptor)
     {
-        throw system_error(address_in_use, "Cannot create TCP server socket on port " + lexical_cast<string>(this->options.getPort()) + ".");
+        throw system_error(address_in_use, "Cannot create TCP server socket on port " + lexical_cast<string>(this->options.getPort()));
     }
 
     if (this->v6Acceptor)
