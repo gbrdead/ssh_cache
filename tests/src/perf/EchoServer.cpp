@@ -1,7 +1,8 @@
 #include "EchoServer.hpp"
 #include "TestUtils.hpp"
 
-#include <iostream>
+#include <string>
+using namespace std;
 
 
 namespace org
@@ -18,10 +19,8 @@ namespace performance
 
 void EchoServer::processIncomingBuffer(tcp::socket &socket, asio::streambuf &buf)
 {
-    istream is(&buf);
-    string line;
-    getline(is, line);
-    writeLine(socket, line);
+    string line = utils::readLine(socket, buf);
+    utils::writeLine(socket, line);
 }
 
 EchoServer::EchoServer(unsigned short port) :

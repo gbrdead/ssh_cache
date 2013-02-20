@@ -25,6 +25,8 @@ namespace ssh_cache
 {
 namespace test
 {
+namespace utils
+{
 
 
 static bool isPortFree(unsigned short port)
@@ -184,6 +186,7 @@ string readLine(tcp::socket &socket, asio::streambuf &buf)
 }
 
 
+}
 }
 }
 }

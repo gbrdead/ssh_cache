@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
             return 0;
         }
 
-        unsigned short echoServerPort = findFreePort();
+        unsigned short echoServerPort = utils::findFreePort();
         EchoServer echoServer(echoServerPort);
 
         string echoServerPortAsString = lexical_cast<string>(echoServerPort);

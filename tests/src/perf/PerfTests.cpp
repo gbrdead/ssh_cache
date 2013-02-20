@@ -256,8 +256,8 @@ void MockPerformanceTest::execute(void)
         return;
     }
 
+    timer.stop();
     {
-        timer.stop();
         mutex::scoped_lock am(this->bigMutex);
         if (this->failure)
         {
@@ -265,8 +265,8 @@ void MockPerformanceTest::execute(void)
             return;
         }
         this->connections.insert(socket);
-        timer.resume();
     }
+    timer.resume();
 
     const static string line("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012");
 
@@ -276,8 +276,8 @@ void MockPerformanceTest::execute(void)
         asio::streambuf buf;
         for (unsigned i = 0; i < 11; i++)
         {
-            writeLine(*socket, line);
-            readLine(*socket, buf);
+            utils::writeLine(*socket, line);
+            utils::readLine(*socket, buf);
         }
         socket->shutdown(tcp::socket::shutdown_both);
         socket->close();

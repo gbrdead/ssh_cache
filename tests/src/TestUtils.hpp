@@ -16,6 +16,8 @@ namespace ssh_cache
 {
 namespace test
 {
+namespace utils
+{
 
 
 using namespace boost;
@@ -43,6 +45,7 @@ string readLine(tcp::socket &socket, asio::streambuf &buf)
     throw (system_error);
 
 
+}
 }
 }
 }
