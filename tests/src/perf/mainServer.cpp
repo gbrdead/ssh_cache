@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
             asyncThreadCountAsString.c_str(),
             "--async"
         };
-        int argc = sizeof(argv) / sizeof(argv[0]) - (options.isAsync() ? 1 : 0);
+        int argc = sizeof(argv) / sizeof(argv[0]) - (options.isAsync() ? 0 : 1);
 
         Options serverOptions(argc, argv);
         Server server(serverOptions);
