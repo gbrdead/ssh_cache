@@ -34,6 +34,8 @@ class ServerInternal
 private:
     const Options &options;
     io_service ioService;
+    list<shared_ptr<thread> > asyncThreads;
+
     ClientService clientService;
     scoped_ptr<tcp::acceptor> v6Acceptor;
     scoped_ptr<tcp::acceptor> v4Acceptor;
@@ -49,6 +51,9 @@ private:
     void asyncAcceptor(tcp::acceptor &acceptor);
 
     void signalHandler(const error_code &error, int signalNumber);
+
+    void runIOServiceThread(void);
+    void runIOService(void);
 
 public:
     ServerInternal(const Options &options);
@@ -135,6 +140,24 @@ ServerInternal::ServerInternal(const Options &options) :
     this->isRunning = false;
 }
 
+void ServerInternal::runIOServiceThread(void)
+{
+    this->ioService.run();
+}
+
+void ServerInternal::runIOService(void)
+{
+    if (this->options.isAsync())
+    {
+        for (unsigned i = 1; i < this->options.getAsyncThreadCount(); i++)
+        {
+            shared_ptr<thread> thr(new thread(&ServerInternal::runIOServiceThread, this));
+            asyncThreads.push_back(thr);
+        }
+    }
+    this->ioService.run();
+}
+
 void ServerInternal::run(void)
     throw (system_error)
 {
@@ -188,7 +211,12 @@ void ServerInternal::run(void)
     }
     this->isRunningCondition.notify_all();
 
-    this->ioService.run();
+    this->runIOService();
+    for (list<shared_ptr<thread> >::iterator i= this->asyncThreads.begin(); i != this->asyncThreads.end(); i++)
+    {
+        (*i)->join();
+    }
+    this->asyncThreads.clear();
 
     for (list<weak_ptr<ClientConnection> >::iterator i = this->clientConnections.begin(); i != this->clientConnections.end(); i++)
     {

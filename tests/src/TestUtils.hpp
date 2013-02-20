@@ -3,9 +3,11 @@
 
 #include <boost/asio.hpp>
 #include <boost/shared_ptr.hpp>
+using namespace boost;
 
 #include <list>
 #include <string>
+using namespace std;
 
 
 namespace org
@@ -20,10 +22,8 @@ namespace utils
 {
 
 
-using namespace boost;
 using namespace boost::asio::ip;
 using namespace boost::system;
-using namespace std;
 
 
 list<unsigned short> findFreePorts(size_t count);
@@ -35,8 +35,6 @@ string generateRandomString(void);
 void transferSomeLines(
     const string &host, unsigned short port,
     list<shared_ptr<string> > &incomingLines, list<shared_ptr<string> > &outgoingLines);
-
-bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<string> > &l2);
 
 void writeLine(tcp::socket &socket, const string &line)
     throw (system_error);
@@ -50,5 +48,7 @@ string readLine(tcp::socket &socket, asio::streambuf &buf)
 }
 }
 }
+
+bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<string> > &l2);
 
 #endif

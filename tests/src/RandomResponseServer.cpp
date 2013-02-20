@@ -24,12 +24,12 @@ void RandomResponseServer::processIncomingBuffer(tcp::socket &socket, asio::stre
         this->incomingLines.push_back(line);
     }
 
-    shared_ptr<string> responseLine(new string(generateRandomString()));
+    shared_ptr<string> responseLine(new string(utils::generateRandomString()));
     {
         mutex::scoped_lock am(this->outgoingLinesMutex);
         this->outgoingLines.push_back(responseLine);
 
-        writeLine(socket, *responseLine);
+        utils::writeLine(socket, *responseLine);
     }
 }
 

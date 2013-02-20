@@ -76,7 +76,7 @@ ServerRunner::~ServerRunner(void)
 
 BOOST_AUTO_TEST_CASE(PortAlreadyInUseTest)
 {
-    unsigned short listenPort = findFreePort();
+    unsigned short listenPort = utils::findFreePort();
     io_service ioService;
     {
         scoped_ptr<tcp::acceptor> v6Acceptor;
@@ -120,10 +120,10 @@ BOOST_AUTO_TEST_CASE(PortAlreadyInUseTest)
     }
 }
 
-BOOST_AUTO_TEST_CASE(GeneralTest)
+void generalTest(bool async)
 {
     unsigned short listenPort, realBackendPort, fakeBakendPort;
-    findFreePorts(listenPort, realBackendPort, fakeBakendPort);
+    utils::findFreePorts(listenPort, realBackendPort, fakeBakendPort);
 
     mt19937 gen(time(0));
     uniform_int_distribution<unsigned> connCountDist(1, 10);
@@ -150,9 +150,10 @@ BOOST_AUTO_TEST_CASE(GeneralTest)
         "--initial-mitm-attacks",
         mitmAttacksAsString.c_str(),
         "--client-expiration",
-        "2147483647"
+        "2147483647",
+        "--async"
     };
-    int argc = sizeof(argv) / sizeof(argv[0]);
+    int argc = sizeof(argv) / sizeof(argv[0]) - (async ? 0 : 1);
     Options options(argc, argv);
     ServerRunner serverRunner(options);
 
@@ -162,12 +163,12 @@ BOOST_AUTO_TEST_CASE(GeneralTest)
     list<shared_ptr<string> > fakeIncomingLines, fakeOutgoingLines;
     for (unsigned i = 0; i < fakeConnectionsCount; i++)
     {
-        transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
+        utils::transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
     }
     list<shared_ptr<string> > realIncomingLines, realOutgoingLines;
     for (unsigned i = 0; i < realConnectionsCount; i++)
     {
-        transferSomeLines("localhost", listenPort, realIncomingLines, realOutgoingLines);
+        utils::transferSomeLines("localhost", listenPort, realIncomingLines, realOutgoingLines);
     }
 
     BOOST_REQUIRE(fakeIncomingLines == fakeBackendServer.getOutgoingLines());
@@ -176,10 +177,20 @@ BOOST_AUTO_TEST_CASE(GeneralTest)
     BOOST_REQUIRE(realOutgoingLines == realBackendServer.getIncomingLines());
 }
 
+BOOST_AUTO_TEST_CASE(GeneralSyncTest)
+{
+    generalTest(false);
+}
+
+BOOST_AUTO_TEST_CASE(GeneralAsyncTest)
+{
+    generalTest(true);
+}
+
 BOOST_AUTO_TEST_CASE(ClientExpirationTest)
 {
     unsigned short listenPort, realBackendPort, fakeBakendPort;
-    findFreePorts(listenPort, realBackendPort, fakeBakendPort);
+    utils::findFreePorts(listenPort, realBackendPort, fakeBakendPort);
 
     string listenPortAsString = lexical_cast<string>(listenPort);
     string realBackendPortAsString = lexical_cast<string>(realBackendPort);
@@ -211,9 +222,9 @@ BOOST_AUTO_TEST_CASE(ClientExpirationTest)
     RandomResponseServer fakeBackendServer(fakeBakendPort);
 
     list<shared_ptr<string> > fakeIncomingLines, fakeOutgoingLines;
-    transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
+    utils::transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
     sleep(milliseconds(1250));
-    transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
+    utils::transferSomeLines("localhost", listenPort, fakeIncomingLines, fakeOutgoingLines);
 
     BOOST_REQUIRE(fakeIncomingLines == fakeBackendServer.getOutgoingLines());
     BOOST_REQUIRE(fakeOutgoingLines == fakeBackendServer.getIncomingLines());

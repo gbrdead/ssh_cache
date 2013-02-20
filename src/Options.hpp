@@ -37,6 +37,8 @@ public:
     const string &getFakeBackendPort(void) const;
     unsigned getInitialMitmAttacks(void) const;
     long getClientExpirationInS(void) const;
+    bool isAsync(void) const;
+    unsigned getAsyncThreadCount(void) const;
 };
 
 

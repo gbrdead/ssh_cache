@@ -19,6 +19,8 @@ static const char *fakeBackendHostOptionName = "fake-backend-host";
 static const char *fakeBackendPortOptionName = "fake-backend-port";
 static const char *initialMitmAttacksOptionName = "initial-mitm-attacks";
 static const char *clientExpirationOptionName = "client-expiration";
+static const char *asyncOptionName = "async";
+static const char *asyncThreadCountOptionName = "async-threads";
 
 
 Options::Options(int argc, const char * const *argv) :
@@ -32,7 +34,9 @@ Options::Options(int argc, const char * const *argv) :
         (fakeBackendHostOptionName, value<string>()->default_value("localhost"), "fake backend host")
         (fakeBackendPortOptionName, value<string>()->default_value("8024"), "fake backend port")
         (initialMitmAttacksOptionName, value<unsigned>()->default_value(1), "initial man-in-the-middle attacks count")
-        (clientExpirationOptionName, value<long>()->default_value(3600), "client expiration in seconds");
+        (clientExpirationOptionName, value<long>()->default_value(3600), "client expiration in seconds")
+        (asyncOptionName, "use asynchronous I/O")
+        (asyncThreadCountOptionName, value<unsigned>()->default_value(1), "asynchronous I/O thread count");
 
     positional_options_description p;
     p.add("", 0);
@@ -85,6 +89,16 @@ unsigned Options::getInitialMitmAttacks(void) const
 long Options::getClientExpirationInS(void) const
 {
     return this->vm[clientExpirationOptionName].as<long>();
+}
+
+bool Options::isAsync(void) const
+{
+    return this->vm.count(asyncOptionName) > 0;
+}
+
+unsigned Options::getAsyncThreadCount(void) const
+{
+    return this->vm[asyncThreadCountOptionName].as<unsigned>();
 }
 
 

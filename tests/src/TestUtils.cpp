@@ -147,26 +147,6 @@ void transferSomeLines(
     socket_utils::close(socket);
 }
 
-bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<string> > &l2)
-{
-    if (l1.size() != l2.size())
-    {
-        return false;
-    }
-
-    for (list<shared_ptr<string> >::const_iterator i1 = l1.begin(), i2 = l2.begin();
-         i1 != l1.end();
-         i1++, i2++)
-    {
-        if (**i1 != **i2)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void writeLine(tcp::socket &socket, const string &line)
     throw (system_error)
 {
@@ -190,4 +170,25 @@ string readLine(tcp::socket &socket, asio::streambuf &buf)
 }
 }
 }
+}
+
+
+bool operator==(const list<shared_ptr<string> > &l1, const list<shared_ptr<string> > &l2)
+{
+    if (l1.size() != l2.size())
+    {
+        return false;
+    }
+
+    for (list<shared_ptr<string> >::const_iterator i1 = l1.begin(), i2 = l2.begin();
+         i1 != l1.end();
+         i1++, i2++)
+    {
+        if (**i1 != **i2)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
