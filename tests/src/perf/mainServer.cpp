@@ -40,10 +40,14 @@ public:
 
     bool isHelp(void) const;
     unsigned short getPort(void) const;
+    bool isAsync(void) const;
+    unsigned getAsyncThreadCount(void) const;
 };
 
 static const char *helpOptionName = "help";
 static const char *portOptionName = "port";
+static const char *asyncOptionName = "async";
+static const char *asyncThreadCountOptionName = "async-threads";
 
 
 Options::Options(int argc, const char * const *argv) :
@@ -51,7 +55,9 @@ Options::Options(int argc, const char * const *argv) :
 {
     this->optionsDescription.add_options()
         (helpOptionName, "help")
-        (portOptionName, value<unsigned short>()->default_value(8022), "listen port");
+        (portOptionName, value<unsigned short>()->default_value(8022), "listen port")
+        (asyncOptionName, "use asynchronous I/O")
+        (asyncThreadCountOptionName, value<unsigned>()->default_value(1), "asynchronous I/O thread count");
 
     positional_options_description p;
     p.add("", 0);
@@ -74,6 +80,16 @@ bool Options::isHelp(void) const
 unsigned short Options::getPort(void) const
 {
     return this->vm[portOptionName].as<unsigned short>();
+}
+
+bool Options::isAsync(void) const
+{
+    return this->vm.count(asyncOptionName) > 0;
+}
+
+unsigned Options::getAsyncThreadCount(void) const
+{
+    return this->vm[asyncThreadCountOptionName].as<unsigned>();
 }
 
 
@@ -99,6 +115,7 @@ int main(int argc, char *argv[])
 
         string echoServerPortAsString = lexical_cast<string>(echoServerPort);
         string listenPortAsString = lexical_cast<string>(options.getPort());
+        string asyncThreadCountAsString = lexical_cast<string>(options.getAsyncThreadCount());
         const char *argv[] =
         {
             "ssh_cache_perf",
@@ -112,8 +129,11 @@ int main(int argc, char *argv[])
             "localhost",
             "--fake-backend-port",
             echoServerPortAsString.c_str(),
+            "--async-threads",
+            asyncThreadCountAsString.c_str(),
+            "--async"
         };
-        int argc = sizeof(argv) / sizeof(argv[0]);
+        int argc = sizeof(argv) / sizeof(argv[0]) - (options.isAsync() ? 1 : 0);
 
         Options serverOptions(argc, argv);
         Server server(serverOptions);
