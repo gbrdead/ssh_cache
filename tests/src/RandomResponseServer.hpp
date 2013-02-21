@@ -38,7 +38,7 @@ protected:
     virtual void processIncomingBuffer(tcp::socket &socket, asio::streambuf &buf);
 
 public:
-    RandomResponseServer(unsigned short port);
+    RandomResponseServer(unsigned short port, unsigned asyncThreadCount = 1);
     virtual ~RandomResponseServer(void);
 
     list<shared_ptr<string> > getIncomingLines(void);

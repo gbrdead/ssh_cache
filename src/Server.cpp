@@ -52,7 +52,6 @@ private:
 
     void signalHandler(const error_code &error, int signalNumber);
 
-    void runIOServiceThread(void);
     void runIOService(void);
 
 public:
@@ -140,19 +139,14 @@ ServerInternal::ServerInternal(const Options &options) :
     this->isRunning = false;
 }
 
-void ServerInternal::runIOServiceThread(void)
-{
-    this->ioService.run();
-}
-
 void ServerInternal::runIOService(void)
 {
     if (this->options.isAsync())
     {
         for (unsigned i = 1; i < this->options.getAsyncThreadCount(); i++)
         {
-            shared_ptr<thread> thr(new thread(&ServerInternal::runIOServiceThread, this));
-            asyncThreads.push_back(thr);
+            shared_ptr<thread> thr(new thread(static_cast<size_t (io_service::*)(void)>(&io_service::run), &this->ioService));
+            this->asyncThreads.push_back(thr);
         }
     }
     this->ioService.run();

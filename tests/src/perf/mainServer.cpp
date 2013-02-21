@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
         }
 
         unsigned short echoServerPort = utils::findFreePort();
-        EchoServer echoServer(echoServerPort);
+        EchoServer echoServer(echoServerPort, options.getAsyncThreadCount());
 
         string echoServerPortAsString = lexical_cast<string>(echoServerPort);
         string listenPortAsString = lexical_cast<string>(options.getPort());

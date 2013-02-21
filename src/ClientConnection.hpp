@@ -63,7 +63,7 @@ private:
     weak_ptr<ClientConnection> syncStart(void);
 
     static bool isReceiveError(const error_code &receiveError);
-    static bool isSsendError(const error_code &sendError);
+    static bool isSendError(const error_code &sendError);
     void asyncReceiveFromBackend(const error_code &sendError, size_t size);
     void asyncSendToBackend(const error_code &receiveError, size_t size);
     void asyncReceiveFromClient(const error_code &sendError, size_t size);

@@ -25,7 +25,7 @@ protected:
     virtual void processIncomingBuffer(tcp::socket &socket, asio::streambuf &buf);
 
 public:
-    EchoServer(unsigned short port);
+    EchoServer(unsigned short port, unsigned asyncThreadCount = 1);
     virtual ~EchoServer(void);
 };
 

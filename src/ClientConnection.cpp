@@ -100,8 +100,9 @@ bool ClientConnection::isReceiveError(const error_code &receiveError)
 {
     if (receiveError)
     {
-        if (receiveError != eof  &&             // The remote peer has closed the connection.
-            receiveError != operation_aborted)  // Another thread has closed the source socket.
+        if (receiveError != eof  &&                 // The remote peer has closed the connection.
+            receiveError != operation_aborted  &&   // Another thread has closed the source socket while receiving.
+            receiveError != bad_descriptor)         // Another thread has closed the source socket just before staring receiving.
         {
             cerr << "Error receiving from socket: " << receiveError.message() << endl;
         }
@@ -110,7 +111,7 @@ bool ClientConnection::isReceiveError(const error_code &receiveError)
     return false;
 }
 
-bool ClientConnection::isSsendError(const error_code &sendError)
+bool ClientConnection::isSendError(const error_code &sendError)
 {
     if (sendError)
     {
@@ -122,7 +123,7 @@ bool ClientConnection::isSsendError(const error_code &sendError)
 
 void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size_t size)
 {
-    if (ClientConnection::isSsendError(sendError))
+    if (ClientConnection::isSendError(sendError))
     {
         this->sendingDone();
         return;
@@ -137,13 +138,12 @@ void ClientConnection::asyncSendToClient(const error_code &receiveError, size_t 
         this->sendingDone();
         return;
     }
-
     async_write(*this->clientSocket,  buffer(this->sendingBuf.get(), size), bind(&ClientConnection::asyncReceiveFromBackend, this, placeholders::error, placeholders::bytes_transferred));
 }
 
 void ClientConnection::asyncReceiveFromClient(const error_code &sendError, size_t size)
 {
-    if (ClientConnection::isSsendError(sendError))
+    if (ClientConnection::isSendError(sendError))
     {
         this->receivingDone();
         return;

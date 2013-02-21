@@ -23,8 +23,8 @@ void EchoServer::processIncomingBuffer(tcp::socket &socket, asio::streambuf &buf
     utils::writeLine(socket, line);
 }
 
-EchoServer::EchoServer(unsigned short port) :
-    TestServer(port)
+EchoServer::EchoServer(unsigned short port, unsigned asyncThreadCount) :
+    TestServer(port, asyncThreadCount)
 {
 }
 

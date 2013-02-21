@@ -74,12 +74,7 @@ void TestServer::asyncAcceptor(tcp::acceptor &acceptor)
 }
 
 
-void TestServer::runIOServiceThread(void)
-{
-    this->ioService.run();
-}
-
-TestServer::TestServer(unsigned short port)
+TestServer::TestServer(unsigned short port, unsigned asyncThreadCount)
 {
     try
     {
@@ -120,7 +115,11 @@ TestServer::TestServer(unsigned short port)
         this->asyncAcceptor(*this->v4Acceptor);
     }
 
-    this->ioServiceRunThread.reset(new thread(&TestServer::runIOServiceThread, this));
+    for (unsigned i = 0; i < asyncThreadCount; i++)
+    {
+        shared_ptr<thread> thr(new thread(static_cast<size_t (io_service::*)(void)>(&io_service::run), &this->ioService));
+        this->asyncThreads.push_back(thr);
+    }
 }
 
 TestServer::~TestServer(void)
@@ -134,7 +133,11 @@ TestServer::~TestServer(void)
         socket_utils::close(*this->v4Acceptor);
     }
     this->ioService.stop();
-    this->ioServiceRunThread->join();
+    for (list<shared_ptr<thread> >::iterator i= this->asyncThreads.begin(); i != this->asyncThreads.end(); i++)
+    {
+        (*i)->join();
+    }
+    this->asyncThreads.clear();
 }
 
 }

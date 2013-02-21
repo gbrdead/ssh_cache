@@ -33,8 +33,8 @@ void RandomResponseServer::processIncomingBuffer(tcp::socket &socket, asio::stre
     }
 }
 
-RandomResponseServer::RandomResponseServer(unsigned short port) :
-    TestServer(port)
+RandomResponseServer::RandomResponseServer(unsigned short port, unsigned asyncThreadCount) :
+    TestServer(port, asyncThreadCount)
 {
 }
 
