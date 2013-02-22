@@ -261,6 +261,7 @@ void MockPerformanceTest::execute(void)
         mutex::scoped_lock am(this->bigMutex);
         if (this->failure)
         {
+            mutex::scoped_lock am(this->bigMutex);
             socket_utils::close(*socket);
             return;
         }
@@ -284,6 +285,7 @@ void MockPerformanceTest::execute(void)
     }
     catch (const system_error &e)
     {
+        mutex::scoped_lock am(this->bigMutex);
         socket_utils::close(*socket);
         thisFailed = true;
     }
