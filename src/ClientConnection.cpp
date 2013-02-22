@@ -47,6 +47,45 @@ weak_ptr<ClientConnection> ClientConnection::createAndStart(const Options &optio
     return options.isAsync() ? clientConn->asyncStart() : clientConn->syncStart();
 }
 
+weak_ptr<ClientConnection> ClientConnection::start(void)
+{
+    shared_ptr<ClientConnection> _this(this);
+    this->thisSendingPtr = _this;
+    this->thisReceivingPtr = _this;
+
+    return _this;
+}
+
+void ClientConnection::sendingDone(void)
+    throw()
+{
+    if (this->options.isAsync())
+    {
+        mutex::scoped_lock am(*this->clientSocketMutex);
+        socket_utils::close(*this->clientSocket);
+    }
+    else
+    {
+        socket_utils::close(*this->clientSocket);
+    }
+    this->thisSendingPtr.reset();
+}
+
+void ClientConnection::receivingDone(void)
+    throw()
+{
+    if (this->options.isAsync())
+    {
+        mutex::scoped_lock am(*this->backendSocketMutex);
+        socket_utils::close(this->backendSocket);
+    }
+    else
+    {
+        socket_utils::close(this->backendSocket);
+    }
+    this->thisReceivingPtr.reset();
+}
+
 void ClientConnection::join(void)
 {
     if (!this->options.isAsync())
@@ -56,53 +95,13 @@ void ClientConnection::join(void)
     }
 }
 
-void ClientConnection::sendingDone(void)
-    throw()
-{
-    socket_utils::close(*this->clientSocket);
-    this->thisSendingPtr.reset();
-}
-
-void ClientConnection::receivingDone(void)
-    throw()
-{
-    socket_utils::close(this->backendSocket);
-    this->thisReceivingPtr.reset();
-}
-
-
-void ClientConnection::syncSend(void)
-{
-    socket_utils::transfer(this->backendSocket, *this->clientSocket);
-    this->sendingDone();
-}
-
-void ClientConnection::syncReceive(void)
-{
-    socket_utils::transfer(*this->clientSocket, this->backendSocket);
-    this->receivingDone();
-}
-
-weak_ptr<ClientConnection> ClientConnection::syncStart(void)
-{
-    shared_ptr<ClientConnection> _this(this);
-    this->thisSendingPtr = _this;
-    this->thisReceivingPtr = _this;
-
-    this->sendingThread.reset(new thread(&ClientConnection::syncSend, this));
-    this->receivingThread.reset(new thread(&ClientConnection::syncReceive, this));
-
-    return _this;
-}
-
-
 bool ClientConnection::isReceiveError(const error_code &receiveError)
 {
     if (receiveError)
     {
-        if (receiveError != eof  &&                 // The remote peer has closed the connection.
-            receiveError != operation_aborted  &&   // Another thread has closed the source socket while receiving.
-            receiveError != bad_descriptor)         // Another thread has closed the source socket just before staring receiving.
+        if (receiveError != eof  &&
+            receiveError != bad_descriptor  &&
+            receiveError != operation_aborted)
         {
             cerr << "Error receiving from socket: " << receiveError.message() << endl;
         }
@@ -121,6 +120,48 @@ bool ClientConnection::isSendError(const error_code &sendError)
     return false;
 }
 
+
+void ClientConnection::syncTransfer(tcp::socket &sourceSocket, tcp::socket &targetSocket)
+    throw()
+{
+    char data[10240];
+    error_code receiveError, sendError;
+
+    do
+    {
+        size_t bytesRead = sourceSocket.read_some(buffer(data, sizeof(data)), receiveError);
+        char *dataToSend = data;
+        while (bytesRead > 0)
+        {
+            size_t bytesSent = targetSocket.write_some(buffer(dataToSend, bytesRead), sendError);
+            bytesRead -= bytesSent;
+            dataToSend += bytesSent / sizeof(*dataToSend);
+        }
+    }
+    while (!isReceiveError(receiveError) && !isSendError(sendError));
+}
+
+void ClientConnection::syncSend(void)
+{
+    ClientConnection::syncTransfer(this->backendSocket, *this->clientSocket);
+    this->sendingDone();
+}
+
+void ClientConnection::syncReceive(void)
+{
+    ClientConnection::syncTransfer(*this->clientSocket, this->backendSocket);
+    this->receivingDone();
+}
+
+weak_ptr<ClientConnection> ClientConnection::syncStart(void)
+{
+    this->sendingThread.reset(new thread(&ClientConnection::syncSend, this));
+    this->receivingThread.reset(new thread(&ClientConnection::syncReceive, this));
+
+    return this->start();
+}
+
+
 void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size_t size)
 {
     if (ClientConnection::isSendError(sendError))
@@ -128,7 +169,10 @@ void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size
         this->sendingDone();
         return;
     }
-    this->backendSocket.async_read_some(buffer(this->sendingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToClient, this, placeholders::error, placeholders::bytes_transferred));
+    {
+        mutex::scoped_lock am(*this->backendSocketMutex);
+        this->backendSocket.async_read_some(buffer(this->sendingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToClient, this, placeholders::error, placeholders::bytes_transferred));
+    }
 }
 
 void ClientConnection::asyncSendToClient(const error_code &receiveError, size_t size)
@@ -148,7 +192,10 @@ void ClientConnection::asyncReceiveFromClient(const error_code &sendError, size_
         this->receivingDone();
         return;
     }
-    this->clientSocket->async_read_some(buffer(this->receivingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToBackend, this, placeholders::error, placeholders::bytes_transferred));
+    {
+        mutex::scoped_lock am(*this->clientSocketMutex);
+        this->clientSocket->async_read_some(buffer(this->receivingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToBackend, this, placeholders::error, placeholders::bytes_transferred));
+    }
 }
 
 void ClientConnection::asyncSendToBackend(const error_code &receiveError, size_t size)
@@ -163,17 +210,16 @@ void ClientConnection::asyncSendToBackend(const error_code &receiveError, size_t
 
 weak_ptr<ClientConnection> ClientConnection::asyncStart(void)
 {
-    shared_ptr<ClientConnection> _this(this);
-    this->thisSendingPtr = _this;
-    this->thisReceivingPtr = _this;
-
     this->sendingBuf.reset(new char[ClientConnection::BUF_SIZE / sizeof(char)]);
     this->receivingBuf.reset(new char[ClientConnection::BUF_SIZE / sizeof(char)]);
+
+    this->clientSocketMutex.reset(new mutex);
+    this->backendSocketMutex.reset(new mutex);
 
     this->asyncReceiveFromBackend(error_code(), 0);
     this->asyncReceiveFromClient(error_code(), 0);
 
-    return _this;
+    return this->start();
 }
 
 

@@ -34,12 +34,9 @@ private:
     static const size_t BUF_SIZE = 10240;
 
     const Options &options;
-
     ClientService &clientService;
-
     shared_ptr<tcp::socket> clientSocket;
     tcp::socket backendSocket;
-
     shared_ptr<ClientConnection> thisSendingPtr;
     shared_ptr<ClientConnection> thisReceivingPtr;
 
@@ -48,22 +45,26 @@ private:
 
     scoped_array<char> sendingBuf;
     scoped_array<char> receivingBuf;
+    scoped_ptr<mutex> clientSocketMutex;
+    scoped_ptr<mutex> backendSocketMutex;
 
 
     ClientConnection(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
         throw (system_error);
-
+    weak_ptr<ClientConnection> start(void);
     void sendingDone(void)
         throw();
     void receivingDone(void)
         throw();
+    static bool isReceiveError(const error_code &receiveError);
+    static bool isSendError(const error_code &sendError);
 
+    void syncTransfer(tcp::socket &sourceSocket, tcp::socket &targetSocket)
+        throw();
     void syncSend(void);
     void syncReceive(void);
     weak_ptr<ClientConnection> syncStart(void);
 
-    static bool isReceiveError(const error_code &receiveError);
-    static bool isSendError(const error_code &sendError);
     void asyncReceiveFromBackend(const error_code &sendError, size_t size);
     void asyncSendToBackend(const error_code &receiveError, size_t size);
     void asyncReceiveFromClient(const error_code &sendError, size_t size);

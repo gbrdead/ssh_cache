@@ -7,7 +7,6 @@ using namespace boost::asio::error;
 using namespace boost::system;
 
 #include <iostream>
-using namespace std;
 
 
 namespace org
@@ -48,40 +47,6 @@ void connect(tcp::socket &socket, const string &host, const string &service)
     {
         throw system_error(*firstException);
     }
-}
-
-
-void transfer(tcp::socket &sourceSocket, tcp::socket &targetSocket)
-    throw()
-{
-    char data[10240];
-    error_code receiveError, sendError;
-
-    do
-    {
-        size_t bytesRead = sourceSocket.read_some(buffer(data, sizeof(data)), receiveError);
-        char *dataToSend = data;
-        while (bytesRead > 0)
-        {
-            size_t bytesSent = targetSocket.write_some(buffer(dataToSend, bytesRead), sendError);
-            bytesRead -= bytesSent;
-            dataToSend += bytesSent / sizeof(*dataToSend);
-        }
-
-        if (receiveError)
-        {
-            if (receiveError != eof  &&         // The remote peer has closed the connection.
-                receiveError != bad_descriptor) // Another thread has closed sourceSocket.
-            {
-                cerr << "Error receiving from socket: " << receiveError.message() << endl;
-            }
-        }
-        if (sendError)
-        {
-            cerr << "Error sending to socket: " << sendError.message() << endl;
-        }
-    }
-    while (!receiveError && !sendError);
 }
 
 void close(tcp::socket &socket)
