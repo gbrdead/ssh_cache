@@ -32,7 +32,7 @@ using namespace std;
 class ClientService;
 
 class Client :
-    private noncopyable
+    private boost::noncopyable
 {
     friend class ClientService;
 
@@ -58,7 +58,7 @@ public:
 
 
 class ClientService :
-    private noncopyable
+    private boost::noncopyable
 {
     friend class Client;
 
