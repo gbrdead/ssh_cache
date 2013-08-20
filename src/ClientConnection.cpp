@@ -61,6 +61,8 @@ void ClientConnection::sendingDone(void)
 {
     if (this->options.isAsync())
     {
+        // A socket must not be closed while starting a new async operation on it.
+        // See https://svn.boost.org/trac/boost/ticket/7611 .
         mutex::scoped_lock am(*this->clientSocketMutex);
         socket_utils::close(*this->clientSocket);
     }
@@ -169,9 +171,14 @@ void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size
         this->sendingDone();
         return;
     }
+
+    shared_ptr<ClientConnection> _this = this->thisSendingPtr;
     {
         mutex::scoped_lock am(*this->backendSocketMutex);
         this->backendSocket.async_read_some(buffer(this->sendingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToClient, this, placeholders::error, placeholders::bytes_transferred));
+        // If _this above is removed then the following race condition may occur:
+        // asyncSendToClient() might be called with an error (leading to the deletion of this) before this block finishes.
+        // In this way, the destructor of am will access freed memory.
     }
 }
 
@@ -192,6 +199,8 @@ void ClientConnection::asyncReceiveFromClient(const error_code &sendError, size_
         this->receivingDone();
         return;
     }
+
+    shared_ptr<ClientConnection> _this = this->thisReceivingPtr;
     {
         mutex::scoped_lock am(*this->clientSocketMutex);
         this->clientSocket->async_read_some(buffer(this->receivingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToBackend, this, placeholders::error, placeholders::bytes_transferred));
