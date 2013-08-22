@@ -23,9 +23,9 @@ using namespace std;
 
 void connect(tcp::socket &socket, const string &host, const string &service)
     throw (system_error);
-void close(tcp::socket &socket)
+void closeSocket(tcp::socket &socket)
     throw();
-void close(tcp::acceptor &acceptor)
+void closeAcceptor(tcp::acceptor &acceptor)
     throw();
 
 

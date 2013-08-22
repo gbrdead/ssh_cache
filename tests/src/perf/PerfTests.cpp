@@ -262,7 +262,7 @@ void MockPerformanceTest::execute(void)
         if (this->failure)
         {
             mutex::scoped_lock am(this->bigMutex);
-            socket_utils::close(*socket);
+            socket_utils::closeSocket(*socket);
             return;
         }
         this->connections.insert(socket);
@@ -286,7 +286,7 @@ void MockPerformanceTest::execute(void)
     catch (const system_error &e)
     {
         mutex::scoped_lock am(this->bigMutex);
-        socket_utils::close(*socket);
+        socket_utils::closeSocket(*socket);
         thisFailed = true;
     }
 
@@ -322,7 +322,7 @@ void MockPerformanceTest::cleanupAfterFailure(void)
 
     for (set<shared_ptr<tcp::socket> >::const_iterator i = this->connections.begin(); i != this->connections.end(); i++)
     {
-        socket_utils::close(**i);
+        socket_utils::closeSocket(**i);
     }
 }
 

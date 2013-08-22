@@ -35,8 +35,13 @@ private:
 
     const Options &options;
     ClientService &clientService;
+
     shared_ptr<tcp::socket> clientSocket;
-    tcp::socket backendSocket;
+    shared_ptr<tcp::socket> backendSocket;
+
+    io_service::strand clientStrand;
+    io_service::strand backendStrand;
+
     shared_ptr<ClientConnection> thisSendingPtr;
     shared_ptr<ClientConnection> thisReceivingPtr;
 
@@ -45,13 +50,14 @@ private:
 
     scoped_array<char> sendingBuf;
     scoped_array<char> receivingBuf;
-    scoped_ptr<mutex> clientSocketMutex;
-    scoped_ptr<mutex> backendSocketMutex;
 
 
-    ClientConnection(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
+    ClientConnection(const Options &options, ClientService &clientService, const shared_ptr<tcp::socket> &socket)
         throw (system_error);
     weak_ptr<ClientConnection> start(void);
+
+    static void closeSocket(const shared_ptr<tcp::socket> &socket)
+        throw();
     void sendingDone(void)
         throw();
     void receivingDone(void)
@@ -72,7 +78,7 @@ private:
     weak_ptr<ClientConnection> asyncStart(void);
 
 public:
-    static weak_ptr<ClientConnection> createAndStart(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
+    static weak_ptr<ClientConnection> createAndStart(const Options &options, ClientService &clientService, const shared_ptr<tcp::socket> &socket)
         throw (system_error, thread_resource_error);
     void join(void);
 };

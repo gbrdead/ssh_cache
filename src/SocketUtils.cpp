@@ -49,7 +49,7 @@ void connect(tcp::socket &socket, const string &host, const string &service)
     }
 }
 
-void close(tcp::socket &socket)
+void closeSocket(tcp::socket &socket)
     throw()
 {
     error_code ignoreError;
@@ -57,7 +57,7 @@ void close(tcp::socket &socket)
     socket.close(ignoreError);
 }
 
-void close(tcp::acceptor &acceptor)
+void closeAcceptor(tcp::acceptor &acceptor)
     throw()
 {
     error_code ignoreError;

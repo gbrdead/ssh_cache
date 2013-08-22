@@ -27,7 +27,7 @@ void TestServer::lineReadHandler(const error_code &err, size_t size, shared_ptr<
     {
         if (err == eof)
         {
-            socket_utils::close(*socket);
+            socket_utils::closeSocket(*socket);
             return;
         }
         cerr << "Cannot read from socket: " << err.message() << endl;
@@ -126,11 +126,11 @@ TestServer::~TestServer(void)
 {
     if (this->v6Acceptor)
     {
-        socket_utils::close(*this->v6Acceptor);
+        socket_utils::closeAcceptor(*this->v6Acceptor);
     }
     if (this->v4Acceptor)
     {
-        socket_utils::close(*this->v4Acceptor);
+        socket_utils::closeAcceptor(*this->v4Acceptor);
     }
     this->ioService.stop();
     for (list<shared_ptr<thread> >::iterator i= this->asyncThreads.begin(); i != this->asyncThreads.end(); i++)

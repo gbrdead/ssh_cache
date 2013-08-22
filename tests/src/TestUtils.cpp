@@ -144,7 +144,7 @@ void transferSomeLines(
         incomingLines.push_back(incomingLine);
     }
 
-    socket_utils::close(socket);
+    socket_utils::closeSocket(socket);
 }
 
 void writeLine(tcp::socket &socket, const string &line)

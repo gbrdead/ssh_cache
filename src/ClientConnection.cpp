@@ -18,29 +18,31 @@ namespace ssh_cache
 {
 
 
-ClientConnection::ClientConnection(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
+ClientConnection::ClientConnection(const Options &options, ClientService &clientService, const shared_ptr<tcp::socket> &socket)
     throw (system_error) :
         options(options),
         clientService(clientService),
         clientSocket(socket),
-        backendSocket(socket->get_io_service())
+        backendSocket(new tcp::socket(socket->get_io_service())),
+        clientStrand(socket->get_io_service()),
+        backendStrand(socket->get_io_service())
 {
     address clientAddr = this->clientSocket->remote_endpoint().address();
     shared_ptr<Client> client = this->clientService.getClient(clientAddr);
 
     if (client->getMitmAttacksCount() < this->options.getInitialMitmAttacks())
     {
-        socket_utils::connect(this->backendSocket, this->options.getFakeBackendHost(), this->options.getFakeBackendPort());
+        socket_utils::connect(*this->backendSocket, this->options.getFakeBackendHost(), this->options.getFakeBackendPort());
         client->addMitmAttack();
     }
     else
     {
-        socket_utils::connect(this->backendSocket, this->options.getRealBackendHost(), this->options.getRealBackendPort());
+        socket_utils::connect(*this->backendSocket, this->options.getRealBackendHost(), this->options.getRealBackendPort());
     }
     client->connected();
 }
 
-weak_ptr<ClientConnection> ClientConnection::createAndStart(const Options &options, ClientService &clientService, shared_ptr<tcp::socket> socket)
+weak_ptr<ClientConnection> ClientConnection::createAndStart(const Options &options, ClientService &clientService, const shared_ptr<tcp::socket> &socket)
     throw (system_error, thread_resource_error)
 {
     ClientConnection *clientConn = new ClientConnection(options, clientService, socket);
@@ -56,6 +58,12 @@ weak_ptr<ClientConnection> ClientConnection::start(void)
     return _this;
 }
 
+void ClientConnection::closeSocket(const shared_ptr<tcp::socket> &socket)
+    throw()
+{
+    socket_utils::closeSocket(*socket);
+}
+
 void ClientConnection::sendingDone(void)
     throw()
 {
@@ -63,12 +71,13 @@ void ClientConnection::sendingDone(void)
     {
         // A socket must not be closed while starting a new async operation on it.
         // See https://svn.boost.org/trac/boost/ticket/7611 .
-        mutex::scoped_lock am(*this->clientSocketMutex);
-        socket_utils::close(*this->clientSocket);
+        // By using a strand we make sure that all the operations on a single socket
+        // (async read, async write and close) will be serialized.
+        this->clientStrand.dispatch(bind(&ClientConnection::closeSocket, this->clientSocket));
     }
     else
     {
-        socket_utils::close(*this->clientSocket);
+        socket_utils::closeSocket(*this->clientSocket);
     }
     this->thisSendingPtr.reset();
 }
@@ -78,12 +87,13 @@ void ClientConnection::receivingDone(void)
 {
     if (this->options.isAsync())
     {
-        mutex::scoped_lock am(*this->backendSocketMutex);
-        socket_utils::close(this->backendSocket);
+        // Do not use ref() for the second argument of bind() - we want the shared_ptr copied in case
+        // this object gets destroyed immediately (before ClientConnection::closeSocket is called).
+        this->backendStrand.dispatch(bind(&ClientConnection::closeSocket, this->backendSocket));
     }
     else
     {
-        socket_utils::close(this->backendSocket);
+        socket_utils::closeSocket(*this->backendSocket);
     }
     this->thisReceivingPtr.reset();
 }
@@ -145,13 +155,13 @@ void ClientConnection::syncTransfer(tcp::socket &sourceSocket, tcp::socket &targ
 
 void ClientConnection::syncSend(void)
 {
-    ClientConnection::syncTransfer(this->backendSocket, *this->clientSocket);
+    ClientConnection::syncTransfer(*this->backendSocket, *this->clientSocket);
     this->sendingDone();
 }
 
 void ClientConnection::syncReceive(void)
 {
-    ClientConnection::syncTransfer(*this->clientSocket, this->backendSocket);
+    ClientConnection::syncTransfer(*this->clientSocket, *this->backendSocket);
     this->receivingDone();
 }
 
@@ -171,15 +181,12 @@ void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size
         this->sendingDone();
         return;
     }
-
-    shared_ptr<ClientConnection> _this = this->thisSendingPtr;
-    {
-        mutex::scoped_lock am(*this->backendSocketMutex);
-        this->backendSocket.async_read_some(buffer(this->sendingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToClient, this, placeholders::error, placeholders::bytes_transferred));
-        // If _this above is removed then the following race condition may occur:
-        // asyncSendToClient() might be called with an error (leading to the deletion of this) before this block finishes.
-        // In this way, the destructor of am will access freed memory.
-    }
+    this->backendSocket->async_read_some(
+        buffer(this->sendingBuf.get(), ClientConnection::BUF_SIZE),
+        this->backendStrand.wrap(
+            bind(&ClientConnection::asyncSendToClient, this, placeholders::error, placeholders::bytes_transferred)
+        )
+    );
 }
 
 void ClientConnection::asyncSendToClient(const error_code &receiveError, size_t size)
@@ -189,7 +196,13 @@ void ClientConnection::asyncSendToClient(const error_code &receiveError, size_t 
         this->sendingDone();
         return;
     }
-    async_write(*this->clientSocket,  buffer(this->sendingBuf.get(), size), bind(&ClientConnection::asyncReceiveFromBackend, this, placeholders::error, placeholders::bytes_transferred));
+    async_write(
+        *this->clientSocket,
+        buffer(this->sendingBuf.get(), size),
+        this->backendStrand.wrap(
+            bind(&ClientConnection::asyncReceiveFromBackend, this, placeholders::error, placeholders::bytes_transferred)
+        )
+    );
 }
 
 void ClientConnection::asyncReceiveFromClient(const error_code &sendError, size_t size)
@@ -199,12 +212,12 @@ void ClientConnection::asyncReceiveFromClient(const error_code &sendError, size_
         this->receivingDone();
         return;
     }
-
-    shared_ptr<ClientConnection> _this = this->thisReceivingPtr;
-    {
-        mutex::scoped_lock am(*this->clientSocketMutex);
-        this->clientSocket->async_read_some(buffer(this->receivingBuf.get(), ClientConnection::BUF_SIZE), bind(&ClientConnection::asyncSendToBackend, this, placeholders::error, placeholders::bytes_transferred));
-    }
+    this->clientSocket->async_read_some(
+        buffer(this->receivingBuf.get(), ClientConnection::BUF_SIZE),
+        this->clientStrand.wrap(
+            bind(&ClientConnection::asyncSendToBackend, this, placeholders::error, placeholders::bytes_transferred)
+        )
+    );
 }
 
 void ClientConnection::asyncSendToBackend(const error_code &receiveError, size_t size)
@@ -214,16 +227,19 @@ void ClientConnection::asyncSendToBackend(const error_code &receiveError, size_t
         this->receivingDone();
         return;
     }
-    async_write(this->backendSocket, buffer(this->receivingBuf.get(), size), bind(&ClientConnection::asyncReceiveFromClient, this, placeholders::error, placeholders::bytes_transferred));
+    async_write(
+        *this->backendSocket,
+        buffer(this->receivingBuf.get(), size),
+        this->clientStrand.wrap(
+            bind(&ClientConnection::asyncReceiveFromClient, this, placeholders::error, placeholders::bytes_transferred)
+        )
+    );
 }
 
 weak_ptr<ClientConnection> ClientConnection::asyncStart(void)
 {
     this->sendingBuf.reset(new char[ClientConnection::BUF_SIZE / sizeof(char)]);
     this->receivingBuf.reset(new char[ClientConnection::BUF_SIZE / sizeof(char)]);
-
-    this->clientSocketMutex.reset(new mutex);
-    this->backendSocketMutex.reset(new mutex);
 
     this->asyncReceiveFromBackend(error_code(), 0);
     this->asyncReceiveFromClient(error_code(), 0);

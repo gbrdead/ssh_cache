@@ -123,11 +123,11 @@ void ServerInternal::signalHandler(const error_code &error, int signalNumber)
 {
     if (this->v6Acceptor)
     {
-        socket_utils::close(*this->v6Acceptor);
+        socket_utils::closeAcceptor(*this->v6Acceptor);
     }
     if (this->v4Acceptor)
     {
-        socket_utils::close(*this->v4Acceptor);
+        socket_utils::closeAcceptor(*this->v4Acceptor);
     }
     this->ioService.stop();
 }
