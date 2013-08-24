@@ -39,10 +39,10 @@ namespace performance
 {
 
 
-void PerformanceTest::executeOnce(barrier &b)
+void PerformanceTest::executeOnce(barrier &b, unsigned number)
 {
     b.wait();
-    this->execute();
+    this->executeOne(number);
 }
 
 void PerformanceTest::fail(void)
@@ -65,7 +65,7 @@ bool PerformanceTest::execute(unsigned count)
 
     for (unsigned i = 0; i < count; i++)
     {
-        shared_ptr<thread> thr(new thread(&PerformanceTest::executeOnce, this, ref(b)));
+        shared_ptr<thread> thr(new thread(&PerformanceTest::executeOnce, this, ref(b), i));
         threads.push_back(thr);
     }
 
@@ -107,7 +107,7 @@ RealPerformanceTest::~RealPerformanceTest(void)
 {
 }
 
-void RealPerformanceTest::execute(void)
+void RealPerformanceTest::executeOne(unsigned number)
 {
     pid_t pid;
     scoped_ptr<cpu_timer> timer;
@@ -241,7 +241,7 @@ MockPerformanceTest::~MockPerformanceTest(void)
 {
 }
 
-void MockPerformanceTest::execute(void)
+void MockPerformanceTest::executeOne(unsigned number)
 {
     shared_ptr<tcp::socket> socket(new tcp::socket(this->ioService));
     cpu_timer timer;
@@ -258,10 +258,9 @@ void MockPerformanceTest::execute(void)
 
     timer.stop();
     {
-        mutex::scoped_lock am(this->bigMutex);
+    	mutex::scoped_lock am(this->bigMutex);
         if (this->failure)
         {
-            mutex::scoped_lock am(this->bigMutex);
             socket_utils::closeSocket(*socket);
             return;
         }

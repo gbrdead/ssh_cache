@@ -24,8 +24,8 @@ ClientConnection::ClientConnection(const Options &options, ClientService &client
         clientService(clientService),
         clientSocket(socket),
         backendSocket(new tcp::socket(socket->get_io_service())),
-        clientStrand(socket->get_io_service()),
-        backendStrand(socket->get_io_service())
+        sendingStrand(socket->get_io_service()),
+        receivingStrand(socket->get_io_service())
 {
     address clientAddr = this->clientSocket->remote_endpoint().address();
     shared_ptr<Client> client = this->clientService.getClient(clientAddr);
@@ -58,10 +58,11 @@ weak_ptr<ClientConnection> ClientConnection::start(void)
     return _this;
 }
 
-void ClientConnection::closeSocket(const shared_ptr<tcp::socket> &socket)
+void ClientConnection::closeSocketAndRelease(const shared_ptr<tcp::socket> &socket, shared_ptr<ClientConnection> &thisPtrToRelease)
     throw()
 {
     socket_utils::closeSocket(*socket);
+    thisPtrToRelease.reset();
 }
 
 void ClientConnection::sendingDone(void)
@@ -71,15 +72,14 @@ void ClientConnection::sendingDone(void)
     {
         // A socket must not be closed while starting a new async operation on it.
         // See https://svn.boost.org/trac/boost/ticket/7611 .
-        // By using a strand we make sure that all the operations on a single socket
-        // (async read, async write and close) will be serialized.
-        this->clientStrand.dispatch(bind(&ClientConnection::closeSocket, this->clientSocket));
+        // By using a strand when operations on a single socket may intermingle
+    	// we make sure that they will be serialized.
+        this->sendingStrand.dispatch(bind(&ClientConnection::closeSocketAndRelease, ref(this->clientSocket), ref(this->thisSendingPtr)));
     }
     else
     {
-        socket_utils::closeSocket(*this->clientSocket);
+    	ClientConnection::closeSocketAndRelease(this->clientSocket, this->thisSendingPtr);
     }
-    this->thisSendingPtr.reset();
 }
 
 void ClientConnection::receivingDone(void)
@@ -87,15 +87,12 @@ void ClientConnection::receivingDone(void)
 {
     if (this->options.isAsync())
     {
-        // Do not use ref() for the second argument of bind() - we want the shared_ptr copied in case
-        // this object gets destroyed immediately (before ClientConnection::closeSocket is called).
-        this->backendStrand.dispatch(bind(&ClientConnection::closeSocket, this->backendSocket));
+        this->receivingStrand.dispatch(bind(&ClientConnection::closeSocketAndRelease, ref(this->backendSocket), ref(this->thisReceivingPtr)));
     }
     else
     {
-        socket_utils::closeSocket(*this->backendSocket);
+    	ClientConnection::closeSocketAndRelease(this->backendSocket, this->thisReceivingPtr);
     }
-    this->thisReceivingPtr.reset();
 }
 
 void ClientConnection::join(void)
@@ -173,6 +170,13 @@ weak_ptr<ClientConnection> ClientConnection::syncStart(void)
     return this->start();
 }
 
+void ClientConnection::asyncReadSome(const shared_ptr<tcp::socket> &socket, scoped_array<char> &buf, AsyncHandler readHandler)
+{
+	socket->async_read_some(
+		buffer(buf.get(), ClientConnection::BUF_SIZE),
+		bind(readHandler, this, placeholders::error, placeholders::bytes_transferred)
+	);
+}
 
 void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size_t size)
 {
@@ -181,12 +185,9 @@ void ClientConnection::asyncReceiveFromBackend(const error_code &sendError, size
         this->sendingDone();
         return;
     }
-    this->backendSocket->async_read_some(
-        buffer(this->sendingBuf.get(), ClientConnection::BUF_SIZE),
-        this->backendStrand.wrap(
-            bind(&ClientConnection::asyncSendToClient, this, placeholders::error, placeholders::bytes_transferred)
-        )
-    );
+    this->receivingStrand.dispatch(
+    	bind(&ClientConnection::asyncReadSome,
+    		this, ref(this->backendSocket), ref(this->sendingBuf), &ClientConnection::asyncSendToClient));
 }
 
 void ClientConnection::asyncSendToClient(const error_code &receiveError, size_t size)
@@ -196,12 +197,12 @@ void ClientConnection::asyncSendToClient(const error_code &receiveError, size_t 
         this->sendingDone();
         return;
     }
+    // There is no need of using a strand here: the other relaying couple of functions (asyncReceiveFromClient & asyncSendToBackend)
+    // will not attempt to close the socket used here (namely, clientSocket).
     async_write(
         *this->clientSocket,
         buffer(this->sendingBuf.get(), size),
-        this->backendStrand.wrap(
-            bind(&ClientConnection::asyncReceiveFromBackend, this, placeholders::error, placeholders::bytes_transferred)
-        )
+        bind(&ClientConnection::asyncReceiveFromBackend, this, placeholders::error, placeholders::bytes_transferred)
     );
 }
 
@@ -212,12 +213,9 @@ void ClientConnection::asyncReceiveFromClient(const error_code &sendError, size_
         this->receivingDone();
         return;
     }
-    this->clientSocket->async_read_some(
-        buffer(this->receivingBuf.get(), ClientConnection::BUF_SIZE),
-        this->clientStrand.wrap(
-            bind(&ClientConnection::asyncSendToBackend, this, placeholders::error, placeholders::bytes_transferred)
-        )
-    );
+    this->sendingStrand.dispatch(
+    	bind(&ClientConnection::asyncReadSome,
+    		this, ref(this->clientSocket), ref(this->receivingBuf), &ClientConnection::asyncSendToBackend));
 }
 
 void ClientConnection::asyncSendToBackend(const error_code &receiveError, size_t size)
@@ -230,9 +228,7 @@ void ClientConnection::asyncSendToBackend(const error_code &receiveError, size_t
     async_write(
         *this->backendSocket,
         buffer(this->receivingBuf.get(), size),
-        this->clientStrand.wrap(
-            bind(&ClientConnection::asyncReceiveFromClient, this, placeholders::error, placeholders::bytes_transferred)
-        )
+        bind(&ClientConnection::asyncReceiveFromClient, this, placeholders::error, placeholders::bytes_transferred)
     );
 }
 

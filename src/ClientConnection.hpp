@@ -39,8 +39,8 @@ private:
     shared_ptr<tcp::socket> clientSocket;
     shared_ptr<tcp::socket> backendSocket;
 
-    io_service::strand clientStrand;
-    io_service::strand backendStrand;
+    io_service::strand sendingStrand;
+    io_service::strand receivingStrand;
 
     shared_ptr<ClientConnection> thisSendingPtr;
     shared_ptr<ClientConnection> thisReceivingPtr;
@@ -56,7 +56,7 @@ private:
         throw (system_error);
     weak_ptr<ClientConnection> start(void);
 
-    static void closeSocket(const shared_ptr<tcp::socket> &socket)
+    static void closeSocketAndRelease(const shared_ptr<tcp::socket> &socket, shared_ptr<ClientConnection> &thisPtrToRelease)
         throw();
     void sendingDone(void)
         throw();
@@ -70,6 +70,9 @@ private:
     void syncSend(void);
     void syncReceive(void);
     weak_ptr<ClientConnection> syncStart(void);
+
+    typedef void (ClientConnection::*AsyncHandler)(const error_code &, size_t);
+    void asyncReadSome(const shared_ptr<tcp::socket> &socket, scoped_array<char> &buf, AsyncHandler readHandler);
 
     void asyncReceiveFromBackend(const error_code &sendError, size_t size);
     void asyncSendToBackend(const error_code &receiveError, size_t size);

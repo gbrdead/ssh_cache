@@ -39,7 +39,7 @@ using namespace std;
 class PerformanceTest
 {
 private:
-    void executeOnce(barrier &b);
+    void executeOnce(barrier &b, unsigned number);
 
 protected:
     const Options &options;
@@ -48,7 +48,7 @@ protected:
     nanosecond_type maxTime;
     mutex maxTimeMutex;
 
-    virtual void execute(void) = 0;
+    virtual void executeOne(unsigned number) = 0;
     virtual void cleanupAfterFailure(void) = 0;
     void fail(void);
 
@@ -70,7 +70,7 @@ private:
     set<pid_t> childProcesses;
 
 protected:
-    virtual void execute(void);
+    virtual void executeOne(unsigned number);
     virtual void cleanupAfterFailure(void);
 
 public:
@@ -90,7 +90,7 @@ private:
     set<shared_ptr<tcp::socket> > connections;
 
 protected:
-    virtual void execute(void);
+    virtual void executeOne(unsigned number);
     virtual void cleanupAfterFailure(void);
 
 public:
