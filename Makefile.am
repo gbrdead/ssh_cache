@@ -1,5 +1,6 @@
 SUBDIRS = . tests
 
+AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I config
 
 LIBTOOL_DEPS = @LIBTOOL_DEPS@

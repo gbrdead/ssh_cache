@@ -1,3 +1,6 @@
+AUTOMAKE_OPTIONS = subdir-objects
+
+
 noinst_PROGRAMS =
 check_PROGRAMS =
 
